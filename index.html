@@ -192,10 +192,10 @@
         }
 
         Promise.all([
-            fetch('https://raw.githubusercontent.com/ydvkrn/Personality/refs/heads/main/profiles.json')
+            fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json')
                 .then(res => res.ok ? res.json() : Promise.reject('Profiles fetch failed'))
                 .catch(() => ({ profiles: [] })),
-            fetch('https://raw.githubusercontent.com/ydvkrn/Personality/refs/heads/main/reels.json')
+            fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json')
                 .then(res => res.ok ? res.json() : Promise.reject('Reels fetch failed'))
                 .catch(() => ({ reels: [] }))
         ])
