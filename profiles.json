@@ -1,0 +1,28 @@
+{
+    "profiles": [
+        {
+            "id": "A1",
+            "username": "Billieeilish",
+            "profile": "https:\/\/upload.wikimedia.org\/wikipedia\/commons\/thumb\/f\/fa\/Billie_Eilish_2019_by_Glenn_Francis_%28cropped%29_2.jpg\/1200px-Billie_Eilish_2019_by_Glenn_Francis_%28cropped%29_2.jpg",
+            "verified": true
+        },
+        {
+            "id": "MSM",
+            "username": "masoom",
+            "profile": "https:\/\/res.cloudinary.com\/dohrsxrnr\/image\/upload\/v1742956607\/Me.webp",
+            "verified": true
+        },
+        {
+            "id": "PM",
+            "username": "modi",
+            "profile": "https:\/\/i.postimg.cc\/6pkHH2PD\/image.jpg",
+            "verified": false
+        },
+        {
+            "id": "SL",
+            "username": "sunnyleone",
+            "profile": "https:\/\/i.postimg.cc\/mD8nWXKP\/image.jpg",
+            "verified": true
+        }
+    ]
+}
