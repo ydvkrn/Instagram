@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Reel Of The Day</title>
+    <style>
+        /* Same as before */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        #reels-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            scroll-snap-type: y mandatory;
+            -webkit-overflow-scrolling: touch;
+            display: none;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            scroll-snap-align: start;
+            flex-shrink: 0;
+            background-color: #000;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background-color: #000;
+        }
+
+        .video-loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 32px;
+            border: 3px solid #fff;
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            z-index: 10;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .thumbnail {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 5;
+        }
+
+        /* Rest of your styles remain the same */
+    </style>
+</head>
+<body>
+    <div id="loading-screen">Loading: 0%</div>
+    <div id="reels-container"></div>
+    <div class="fixed-overlay">
+        <img class="profile-pic" id="profile-pic" src="">
+        <div class="user-info">
+            <div class="username" id="username">
+                <span id="username-text">Loading...</span>
+                <img class="verify-badge" id="verify-badge" src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Twitter_Verified_Badge_Gold.svg/2048px-Twitter_Verified_Badge_Gold.svg.png">
+            </div>
+        </div>
+    </div>
+    <div class="title" id="title" onclick="showFullTitle()">Loading...</div>
+
+    <script>
+        let fullTitle = "";
+        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true';
+        const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000;
+        const CACHE_NAME = 'reels-cache-v1';
+        let allReels = [];
+        let currentReels = [];
+        const VIDEOS_PER_BATCH = 5;
+        let currentBatchStart = 0;
+        const DEFAULT_THUMBNAIL = "https://via.placeholder.com/150?text=Thumbnail"; // Fallback thumbnail
+
+        function setAudioPersistence() {
+            localStorage.setItem('audioEnabled', 'true');
+            localStorage.setItem('audioTimestamp', Date.now());
+        }
+
+        function shouldKeepAudioEnabled() {
+            const timestamp = localStorage.getItem('audioTimestamp');
+            return timestamp && Date.now() - parseInt(timestamp) < AUDIO_PERSISTENCE_DURATION;
+        }
+
+        if (shouldKeepAudioEnabled()) isAudioEnabled = true;
+        else {
+            localStorage.removeItem('audioEnabled');
+            localStorage.removeItem('audioTimestamp');
+        }
+
+        async function fetchAndCache(url) {
+            const cache = await caches.open(CACHE_NAME);
+            let cachedResponse = await cache.match(url);
+            if (cachedResponse) return cachedResponse.url;
+
+            const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+            if (response.ok) {
+                await cache.put(url, response.clone());
+                return url;
+            }
+            return null;
+        }
+
+        async function generateThumbnail(videoUrl) {
+            return new Promise((resolve) => {
+                const video = document.createElement('video');
+                video.src = videoUrl;
+                video.muted = true;
+                video.preload = 'metadata';
+
+                video.addEventListener('loadeddata', () => {
+                    video.currentTime = 1; // Capture frame at 1 second
+                });
+
+                video.addEventListener('seeked', () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg'));
+                });
+
+                video.addEventListener('error', () => resolve(DEFAULT_THUMBNAIL));
+            });
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        async function updateLoadingScreen(percent) {
+            document.getElementById('loading-screen').textContent = `Loading: ${percent}%`;
+        }
+
+        async function showLoadingScreen() {
+            document.getElementById('loading-screen').style.display = 'flex';
+            document.getElementById('reels-container').style.display = 'none';
+        }
+
+        async function hideLoadingScreen() {
+            document.getElementById('loading-screen').style.display = 'none';
+            document.getElementById('reels-container').style.display = 'flex';
+        }
+
+        Promise.all([
+            fetch('profiles.json').then(res => res.ok ? res.json() : ({ profiles: [] })),
+            fetch('reels.json').then(res => res.ok ? res.json() : ({ reels: [] }))
+        ])
+        .then(([profilesData, reelsData]) => {
+            const profiles = profilesData.profiles || [];
+            allReels = reelsData.reels || [];
+            currentReels = shuffleArray([...allReels]);
+
+            const container = document.getElementById('reels-container');
+            const profilePic = document.getElementById('profile-pic');
+            const usernameText = document.getElementById('username-text');
+            const verifyBadge = document.getElementById('verify-badge');
+            const title = document.getElementById('title');
+
+            function getProfileById(id) {
+                return profiles.find(profile => profile.id === id) || { 
+                    username: "bot", 
+                    profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg", 
+                    verified: true
+                };
+            }
+
+            async function createVideoElement(reel, index) {
+                const div = document.createElement('div');
+                div.className = 'video-container';
+
+                const video = document.createElement('video');
+                video.playsInline = true;
+                video.controls = false;
+                video.muted = !isAudioEnabled;
+                video.loop = true;
+                video.dataset.index = index;
+                video.dataset.title = reel.title;
+
+                const cachedUrl = await fetchAndCache(reel.media);
+                if (!cachedUrl) {
+                    console.log(`Invalid video URL: ${reel.media}`);
+                    return null;
+                }
+                video.src = cachedUrl;
+
+                // Generate thumbnail
+                const thumbnail = document.createElement('img');
+                thumbnail.className = 'thumbnail';
+                thumbnail.src = reel.thumbnail || await generateThumbnail(cachedUrl); // Use provided thumbnail or generate
+                div.appendChild(thumbnail);
+
+                const loader = document.createElement('div');
+                loader.className = 'video-loader';
+                div.appendChild(loader);
+
+                video.addEventListener('loadstart', () => loader.style.display = 'block');
+                video.addEventListener('canplay', () => {
+                    loader.style.display = 'none';
+                    thumbnail.style.display = 'none';
+                    if (index === currentBatchStart) video.play().catch(e => console.log("Play error:", e));
+                });
+                video.addEventListener('waiting', () => loader.style.display = 'block');
+                video.addEventListener('playing', () => loader.style.display = 'none');
+                video.addEventListener('error', () => {
+                    loader.style.display = 'block';
+                    loader.innerHTML = 'Load failed';
+                });
+                video.addEventListener('click', () => {
+                    if (!isAudioEnabled) {
+                        isAudioEnabled = true;
+                        setAudioPersistence();
+                        document.querySelectorAll('video').forEach(v => v.muted = false);
+                        video.play().catch(e => console.log("Play error:", e));
+                    }
+                });
+                video.addEventListener('dblclick', (e) => showLikeAnimation(div, e));
+
+                div.appendChild(video);
+                return div;
+            }
+
+            async function preloadVideoSources(startIndex) {
+                const endIndex = Math.min(startIndex + VIDEOS_PER_BATCH, currentReels.length);
+                const batchReels = currentReels.slice(startIndex, endIndex);
+                const total = batchReels.length;
+                let loaded = 0;
+
+                await showLoadingScreen();
+                container.innerHTML = '';
+
+                const promises = batchReels.map(async (reel, i) => {
+                    const index = startIndex + i;
+                    const videoElement = await createVideoElement(reel, index);
+                    if (videoElement) container.appendChild(videoElement);
+                    loaded++;
+                    await updateLoadingScreen(Math.floor((loaded / total) * 100));
+                });
+
+                await Promise.all(promises);
+                if (container.children.length === 0) {
+                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No valid videos available.</div>';
+                    await hideLoadingScreen();
+                    return false;
+                }
+
+                await hideLoadingScreen();
+                return true;
+            }
+
+            function updateMetadata(reel) {
+                fullTitle = reel.title;
+                title.innerText = reel.title;
+                const profileData = getProfileById(reel.id);
+                fetchAndCache(profileData.profile).then(url => profilePic.src = url || "https://example.com/default-profile.jpg");
+                usernameText.innerText = profileData.username;
+                verifyBadge.style.display = profileData.verified ? "inline" : "none";
+            }
+
+            function enableScrollPlayback() {
+                let currentVideo = null;
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        const video = entry.target;
+                        const loader = video.parentElement.querySelector('.video-loader');
+                        const index = parseInt(video.dataset.index);
+
+                        if (entry.isIntersecting) {
+                            if (currentVideo && currentVideo !== video) currentVideo.pause();
+                            currentVideo = video;
+                            video.muted = !isAudioEnabled;
+                            video.play().catch(e => console.log("Play error:", e)).then(() => loader.style.display = 'none');
+
+                            const reel = currentReels[index];
+                            if (reel) updateMetadata(reel);
+
+                            if (index >= currentBatchStart + VIDEOS_PER_BATCH - 2) loadNextBatch();
+                        } else if (video !== currentVideo) {
+                            video.pause();
+                            loader.style.display = 'none';
+                        }
+                    });
+                }, { threshold: 0.9 });
+
+                document.querySelectorAll("video").forEach(video => observer.observe(video));
+            }
+
+            async function loadNextBatch() {
+                currentBatchStart += VIDEOS_PER_BATCH;
+                if (currentBatchStart < currentReels.length) {
+                    const success = await preloadVideoSources(currentBatchStart);
+                    if (success) enableScrollPlayback();
+                } else {
+                    currentBatchStart = 0;
+                    currentReels = shuffleArray([...allReels]);
+                    await preloadVideoSources(currentBatchStart);
+                    enableScrollPlayback();
+                }
+            }
+
+            function showFullTitle() {
+                alert(fullTitle);
+            }
+
+            function showLikeAnimation(container, event) {
+                const heart = document.createElement('img');
+                heart.src = "https://png.pngtree.com/png-vector/20220428/ourmid/pngtree-smooth-glossy-heart-vector-file-ai-and-png-png-image_4557871.png";
+                heart.className = 'like-animation';
+                heart.style.left = `${event.clientX - 40}px`;
+                heart.style.top = `${event.clientY - 40}px`;
+                heart.style.opacity = 1;
+
+                container.appendChild(heart);
+                setTimeout(() => {
+                    heart.style.opacity = 0;
+                    container.removeChild(heart);
+                }, 500);
+            }
+
+            preloadVideoSources(currentBatchStart).then(success => {
+                if (success) enableScrollPlayback();
+            });
+        })
+        .catch(error => {
+            console.error('Error loading data:', error);
+            document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
+            document.getElementById('loading-screen').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
