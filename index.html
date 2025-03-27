@@ -118,10 +118,10 @@
 
         .like-animation {
             position: absolute;
-            width: 80px;
-            height: 80px;
+            width: 120px;
+            height: 120px;
             opacity: 0;
-            transition: opacity 0.5s ease-in-out;
+            transition: opacity 0.9s ease-in-out;
         }
 
         #loading-screen {
@@ -239,10 +239,10 @@
         }
 
         Promise.all([
-            fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json')
+            fetch('profiles.json')
                 .then(res => res.ok ? res.json() : Promise.reject('Profiles fetch failed'))
                 .catch(() => ({ profiles: [] })),
-            fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json')
+            fetch('reels.json')
                 .then(res => res.ok ? res.json() : Promise.reject('Reels fetch failed'))
                 .catch(() => ({ reels: [] }))
         ])
