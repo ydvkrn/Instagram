@@ -24,7 +24,6 @@
             overflow-y: auto;
             scroll-snap-type: y mandatory;
             -webkit-overflow-scrolling: touch;
-            display: none;
         }
 
         .video-container {
@@ -251,11 +250,13 @@
             const reelsContainer = document.getElementById('reels-container');
             loadingScreen.style.display = 'none';
             reelsContainer.style.display = 'flex';
+            console.log('Loading screen hidden, reels container should be visible');
         }
 
         function showError(message) {
             const container = document.getElementById('reels-container');
             container.innerHTML = `<div style="color: white; text-align: center; padding-top: 50%;">${message}</div>`;
+            container.style.display = 'flex';
             hideLoadingScreen();
         }
 
@@ -264,7 +265,7 @@
             fetch('reels.json').then(res => res.ok ? res.json() : Promise.reject('Reels fetch failed')).catch(err => { console.error(err); return { reels: [] }; })
         ])
         .then(([profilesData, reelsData]) => {
-            console.log('Profiles and reels data fetched successfully:', profilesData, reelsData);
+            console.log('Profiles and reels data fetched:', profilesData, reelsData);
             const profiles = profilesData.profiles || [];
             allReels = reelsData.reels || [];
             if (allReels.length === 0) {
@@ -306,7 +307,8 @@
                 const cachedUrl = await fetchAndCache(reel.media);
                 if (!cachedUrl || !(await isValidVideoUrl(cachedUrl))) {
                     console.error(`Invalid video URL: ${reel.media}`);
-                    return null;
+                    div.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Video unavailable</div>';
+                    return div; // Return a placeholder instead of null
                 }
                 video.src = cachedUrl;
 
@@ -335,9 +337,9 @@
                 });
 
                 video.addEventListener('error', (e) => {
-                    loader.style.display = 'block';
-                    loader.innerHTML = 'Load failed';
+                    loader.style.display = 'none';
                     console.error('Video error:', e, 'URL:', video.src);
+                    div.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load video</div>';
                 });
 
                 video.addEventListener('click', () => {
@@ -371,14 +373,10 @@
                 await updateLoadingScreen(50, 'Loading first video...');
                 const videoElement = await createVideoElement(reel, 0);
 
-                if (videoElement) {
-                    container.appendChild(videoElement);
-                    await updateLoadingScreen(100, 'Ready!');
-                    await hideLoadingScreen();
-                    enableScrollPlayback();
-                } else {
-                    showError('Failed to load the first video.');
-                }
+                container.appendChild(videoElement);
+                await updateLoadingScreen(100, 'Ready!');
+                await hideLoadingScreen();
+                enableScrollPlayback();
             }
 
             async function preloadNextBatch(startIndex) {
@@ -389,9 +387,7 @@
                     const reel = batchReels[i];
                     const index = startIndex + i;
                     const videoElement = await createVideoElement(reel, index);
-                    if (videoElement) {
-                        container.appendChild(videoElement);
-                    }
+                    container.appendChild(videoElement);
                 }
             }
 
