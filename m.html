@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0,.za viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Reel Of The Day</title>
     <style>
         body, html {
@@ -24,7 +24,7 @@
             overflow-y: auto;
             scroll-snap-type: y mandatory;
             -webkit-overflow-scrolling: touch;
-            display: none;
+            display: none; /* Hidden initially */
         }
 
         .video-container {
@@ -62,16 +62,6 @@
         @keyframes spin {
             0% { transform: translate(-50%, -50%) rotate(0deg); }
             100% { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-
-        .thumbnail {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 5;
         }
 
         .fixed-overlay {
@@ -153,6 +143,7 @@
 <body>
     <div id="loading-screen">Loading: 0%</div>
     <div id="reels-container"></div>
+    
     <div class="fixed-overlay">
         <img class="profile-pic" id="profile-pic" src="">
         <div class="user-info">
@@ -162,6 +153,7 @@
             </div>
         </div>
     </div>
+    
     <div class="title" id="title" onclick="showFullTitle()">Loading...</div>
 
     <script>
@@ -171,9 +163,12 @@
         const CACHE_NAME = 'reels-cache-v1';
         let allReels = [];
         let currentReels = [];
-        const VIDEOS_PER_BATCH = 5;
+        const VIDEOS_PER_BATCH = 20;
         let currentBatchStart = 0;
-        const DEFAULT_THUMBNAIL = "https://via.placeholder.com/150?text=Thumbnail";
+
+        // URL se reelid extract karna
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialReelId = urlParams.get('reelid') || null;
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
@@ -182,11 +177,13 @@
 
         function shouldKeepAudioEnabled() {
             const timestamp = localStorage.getItem('audioTimestamp');
-            return timestamp && Date.now() - parseInt(timestamp) < AUDIO_PERSISTENCE_DURATION;
+            if (!timestamp) return false;
+            return Date.now() - parseInt(timestamp) < AUDIO_PERSISTENCE_DURATION;
         }
 
-        if (shouldKeepAudioEnabled()) isAudioEnabled = true;
-        else {
+        if (shouldKeepAudioEnabled()) {
+            isAudioEnabled = true;
+        } else {
             localStorage.removeItem('audioEnabled');
             localStorage.removeItem('audioTimestamp');
         }
@@ -195,52 +192,27 @@
             try {
                 const cache = await caches.open(CACHE_NAME);
                 let cachedResponse = await cache.match(url);
-                if (cachedResponse) {
-                    console.log(`Cache hit for ${url}`);
-                    return cachedResponse.url;
-                }
+                if (cachedResponse) return cachedResponse.url;
 
-                console.log(`Fetching ${url}`);
                 const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
                 if (response.ok) {
                     await cache.put(url, response.clone());
                     return url;
                 }
-                console.error(`Fetch failed for ${url}: ${response.status}`);
                 return null;
             } catch (error) {
-                console.error(`Cache/fetch error for ${url}:`, error);
+                console.error(`Cache fetch failed for ${url}:`, error);
                 return null;
             }
         }
 
-        async function generateThumbnail(videoUrl) {
-            return new Promise((resolve) => {
-                const video = document.createElement('video');
-                video.src = videoUrl;
-                video.muted = true;
-                video.preload = 'metadata';
-
-                video.addEventListener('loadedmetadata', () => {
-                    console.log(`Metadata loaded for ${videoUrl}`);
-                    video.currentTime = Math.min(1, video.duration || 1);
-                });
-
-                video.addEventListener('seeked', () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth || 320;
-                    canvas.height = video.videoHeight || 180;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    console.log(`Thumbnail generated for ${videoUrl}`);
-                    resolve(canvas.toDataURL('image/jpeg'));
-                });
-
-                video.addEventListener('error', () => {
-                    console.error(`Thumbnail generation failed for ${videoUrl}`);
-                    resolve(DEFAULT_THUMBNAIL);
-                });
-            });
+        async function isValidVideoUrl(url) {
+            try {
+                const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
+                return response.ok;
+            } catch {
+                return false;
+            }
         }
 
         function shuffleArray(array) {
@@ -252,45 +224,43 @@
         }
 
         async function updateLoadingScreen(percent) {
-            document.getElementById('loading-screen').textContent = `Loading: ${percent}%`;
+            const loadingScreen = document.getElementById('loading-screen');
+            loadingScreen.textContent = `Loading: ${percent}%`;
         }
 
         async function showLoadingScreen() {
-            document.getElementById('loading-screen').style.display = 'flex';
-            document.getElementById('reels-container').style.display = 'none';
+            const loadingScreen = document.getElementById('loading-screen');
+            const reelsContainer = document.getElementById('reels-container');
+            loadingScreen.style.display = 'flex';
+            reelsContainer.style.display = 'none';
         }
 
         async function hideLoadingScreen() {
-            document.getElementById('loading-screen').style.display = 'none';
-            document.getElementById('reels-container').style.display = 'flex';
+            const loadingScreen = document.getElementById('loading-screen');
+            const reelsContainer = document.getElementById('reels-container');
+            loadingScreen.style.display = 'none';
+            reelsContainer.style.display = 'flex';
         }
 
         Promise.all([
-            fetch('profiles.json').then(res => {
-                if (!res.ok) throw new Error(`Profiles fetch failed: ${res.status}`);
-                return res.json();
-            }).catch(e => {
-                console.error(e);
-                return { profiles: [] };
-            }),
-            fetch('reels.json').then(res => {
-                if (!res.ok) throw new Error(`Reels fetch failed: ${res.status}`);
-                return res.json();
-            }).catch(e => {
-                console.error(e);
-                return { reels: [] };
-            })
+            fetch('profiles.json')
+                .then(res => res.ok ? res.json() : Promise.reject('Profiles fetch failed'))
+                .catch(() => ({ profiles: [] })),
+            fetch('reels.json')
+                .then(res => res.ok ? res.json() : Promise.reject('Reels fetch failed'))
+                .catch(() => ({ reels: [] }))
         ])
         .then(([profilesData, reelsData]) => {
-            console.log('Profiles:', profilesData);
-            console.log('Reels:', reelsData);
-
             const profiles = profilesData.profiles || [];
             allReels = reelsData.reels || [];
             currentReels = shuffleArray([...allReels]);
 
-            if (allReels.length === 0) {
-                throw new Error("No reels found in reels.json");
+            // URL mein reelid ke hisaab se initial batch set karna
+            if (initialReelId) {
+                const initialReelIndex = currentReels.findIndex(reel => reel.id === initialReelId);
+                if (initialReelIndex !== -1) {
+                    currentBatchStart = Math.floor(initialReelIndex / VIDEOS_PER_BATCH) * VIDEOS_PER_BATCH;
+                }
             }
 
             const container = document.getElementById('reels-container');
@@ -308,7 +278,6 @@
             }
 
             async function createVideoElement(reel, index) {
-                console.log(`Creating video element for reel: ${reel.media}`);
                 const div = document.createElement('div');
                 div.className = 'video-container';
 
@@ -321,61 +290,53 @@
                 video.dataset.title = reel.title;
 
                 const cachedUrl = await fetchAndCache(reel.media);
-                if (!cachedUrl) {
-                    console.error(`Invalid video URL: ${reel.media}`);
+                if (!cachedUrl || !(await isValidVideoUrl(cachedUrl))) {
+                    console.log(`Invalid video URL: ${reel.media}`);
                     return null;
                 }
-
-                // Multiple format support
-                const formats = [
-                    { src: reel.media, type: 'video/mp4' },
-                    { src: reel.media.replace('.mp4', '.webm'), type: 'video/webm' },
-                    { src: reel.media.replace('.mp4', '.ogg'), type: 'video/ogg' }
-                ];
-                formats.forEach(format => {
-                    const source = document.createElement('source');
-                    source.src = format.src;
-                    source.type = format.type;
-                    video.appendChild(source);
-                });
-                video.src = cachedUrl; // Fallback
-
-                const thumbnailUrl = reel.thumbnail || await generateThumbnail(cachedUrl);
-                const thumbnail = document.createElement('img');
-                thumbnail.className = 'thumbnail';
-                thumbnail.src = thumbnailUrl;
-                div.appendChild(thumbnail);
+                video.src = cachedUrl;
 
                 const loader = document.createElement('div');
                 loader.className = 'video-loader';
                 div.appendChild(loader);
 
                 video.addEventListener('loadstart', () => {
-                    console.log(`Load started for ${reel.media}`);
                     loader.style.display = 'block';
                 });
+
                 video.addEventListener('canplay', () => {
-                    console.log(`Can play ${reel.media}`);
                     loader.style.display = 'none';
-                    thumbnail.style.display = 'none';
-                    if (index === currentBatchStart) video.play().catch(e => console.error("Play error:", e));
+                    if (index === currentBatchStart) {
+                        video.play().catch(error => console.log("Initial play error:", error));
+                        updateMetadata(reel);
+                    }
                 });
-                video.addEventListener('waiting', () => loader.style.display = 'block');
-                video.addEventListener('playing', () => loader.style.display = 'none');
-                video.addEventListener('error', (e) => {
-                    console.error(`Video error for ${reel.media}:`, e);
+
+                video.addEventListener('waiting', () => {
+                    loader.style.display = 'block';
+                });
+
+                video.addEventListener('playing', () => {
+                    loader.style.display = 'none';
+                });
+
+                video.addEventListener('error', () => {
                     loader.style.display = 'block';
                     loader.innerHTML = 'Load failed';
                 });
+
                 video.addEventListener('click', () => {
                     if (!isAudioEnabled) {
                         isAudioEnabled = true;
                         setAudioPersistence();
                         document.querySelectorAll('video').forEach(v => v.muted = false);
-                        video.play().catch(e => console.error("Play error:", e));
+                        video.play().catch(error => console.log("Play error:", error));
                     }
                 });
-                video.addEventListener('dblclick', (e) => showLikeAnimation(div, e));
+
+                video.addEventListener('dblclick', (e) => {
+                    showLikeAnimation(div, e);
+                });
 
                 div.appendChild(video);
                 return div;
@@ -390,15 +351,18 @@
                 await showLoadingScreen();
                 container.innerHTML = '';
 
-                const promises = batchReels.map(async (reel, i) => {
+                for (let i = 0; i < total; i++) {
+                    const reel = batchReels[i];
                     const index = startIndex + i;
                     const videoElement = await createVideoElement(reel, index);
-                    if (videoElement) container.appendChild(videoElement);
+                    if (videoElement) {
+                        container.appendChild(videoElement);
+                    }
                     loaded++;
-                    await updateLoadingScreen(Math.floor((loaded / total) * 100));
-                });
+                    const percent = Math.floor((loaded / total) * 100);
+                    await updateLoadingScreen(percent);
+                }
 
-                await Promise.all(promises);
                 if (container.children.length === 0) {
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No valid videos available.</div>';
                     await hideLoadingScreen();
@@ -413,9 +377,12 @@
                 fullTitle = reel.title;
                 title.innerText = reel.title;
                 const profileData = getProfileById(reel.id);
-                fetchAndCache(profileData.profile).then(url => profilePic.src = url || "https://example.com/default-profile.jpg");
+                fetchAndCache(profileData.profile).then(cachedUrl => {
+                    profilePic.src = cachedUrl || "https://example.com/default-profile.jpg";
+                });
                 usernameText.innerText = profileData.username;
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
+                localStorage.setItem('lastSeenReelId', reel.id);
             }
 
             function enableScrollPlayback() {
@@ -427,30 +394,53 @@
                         const index = parseInt(video.dataset.index);
 
                         if (entry.isIntersecting) {
-                            if (currentVideo && currentVideo !== video) currentVideo.pause();
+                            if (currentVideo && currentVideo !== video) {
+                                currentVideo.pause();
+                            }
                             currentVideo = video;
                             video.muted = !isAudioEnabled;
-                            video.play().catch(e => console.error("Play error:", e)).then(() => loader.style.display = 'none');
+
+                            const playPromise = video.play();
+                            if (playPromise !== undefined) {
+                                playPromise
+                                    .then(() => {
+                                        loader.style.display = 'none';
+                                    })
+                                    .catch(error => {
+                                        console.log("Play error:", error);
+                                        loader.style.display = 'block';
+                                    });
+                            }
 
                             const reel = currentReels[index];
-                            if (reel) updateMetadata(reel);
+                            if (reel) {
+                                updateMetadata(reel);
+                                // URL mein reelid update karna
+                                window.history.pushState({}, document.title, `/Instagram/?reelid=${reel.id}`);
+                            }
 
-                            if (index >= currentBatchStart + VIDEOS_PER_BATCH - 2) loadNextBatch();
+                            if (index === currentBatchStart + VIDEOS_PER_BATCH - 1) {
+                                loadNextBatch();
+                            }
                         } else if (video !== currentVideo) {
                             video.pause();
                             loader.style.display = 'none';
                         }
                     });
-                }, { threshold: 0.9 });
+                }, { threshold: 0.7 });
 
-                document.querySelectorAll("video").forEach(video => observer.observe(video));
+                const videos = document.querySelectorAll("video");
+                console.log(`Observing ${videos.length} videos`);
+                videos.forEach(video => observer.observe(video));
             }
 
             async function loadNextBatch() {
                 currentBatchStart += VIDEOS_PER_BATCH;
                 if (currentBatchStart < currentReels.length) {
                     const success = await preloadVideoSources(currentBatchStart);
-                    if (success) enableScrollPlayback();
+                    if (success) {
+                        enableScrollPlayback();
+                    }
                 } else {
                     currentBatchStart = 0;
                     currentReels = shuffleArray([...allReels]);
@@ -478,14 +468,14 @@
                 }, 500);
             }
 
+            // Initial load
             preloadVideoSources(currentBatchStart).then(success => {
                 if (success) enableScrollPlayback();
-                else console.error("Initial preload failed");
-            }).catch(e => console.error("Preload error:", e));
+            });
         })
         .catch(error => {
             console.error('Error loading data:', error);
-            document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels. Check console for details.</div>';
+            document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
             document.getElementById('loading-screen').style.display = 'none';
         });
     </script>
