@@ -64,8 +64,74 @@
             100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
-        .fixed-overlay, .title, .like-animation {
-            /* Same as original */
+        .thumbnail {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 5;
+        }
+
+        .fixed-overlay {
+            position: fixed;
+            bottom: 80px;
+            left: 15px;
+            width: calc(100% - 30px);
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: transparent;
+        }
+
+        .profile-pic {
+            width: 45px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .user-info {
+            margin-left: 10px;
+            color: white;
+        }
+
+        .username {
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+
+        .verify-badge {
+            width: 16px;
+            height: 16px;
+            margin-left: 5px;
+        }
+
+        .title {
+            font-size: 14px;
+            opacity: 0.9;
+            position: fixed;
+            bottom: 40px;
+            left: 15px;
+            width: calc(100% - 30px);
+            color: white;
+            padding: 5px 10px;
+            background: transparent;
+            border-radius: 8px;
+            white-space: normal;
+            cursor: pointer;
+        }
+
+        .like-animation {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            opacity: 0;
+            transition: opacity 0.9s ease-in-out;
         }
 
         #loading-screen {
@@ -81,16 +147,6 @@
             color: white;
             font-size: 24px;
             z-index: 20;
-        }
-
-        .thumbnail {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 5;
         }
     </style>
 </head>
@@ -115,8 +171,9 @@
         const CACHE_NAME = 'reels-cache-v1';
         let allReels = [];
         let currentReels = [];
-        const VIDEOS_PER_BATCH = 5; // Reduced batch size for faster initial load
+        const VIDEOS_PER_BATCH = 5;
         let currentBatchStart = 0;
+        const DEFAULT_THUMBNAIL = "https://via.placeholder.com/150?text=Thumbnail";
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
@@ -147,11 +204,28 @@
             return null;
         }
 
-        async function getVideoQuality() {
-            const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-            if (connection && connection.effectiveType === '2g') return 'low';
-            if (connection && connection.effectiveType === '3g') return 'medium';
-            return 'high';
+        async function generateThumbnail(videoUrl) {
+            return new Promise((resolve) => {
+                const video = document.createElement('video');
+                video.src = videoUrl;
+                video.muted = true;
+                video.preload = 'metadata';
+
+                video.addEventListener('loadedmetadata', () => {
+                    video.currentTime = Math.min(1, video.duration || 1); // Safe fallback
+                });
+
+                video.addEventListener('seeked', () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth || 320; // Default width if not available
+                    canvas.height = video.videoHeight || 180;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg'));
+                });
+
+                video.addEventListener('error', () => resolve(DEFAULT_THUMBNAIL));
+            });
         }
 
         function shuffleArray(array) {
@@ -211,22 +285,34 @@
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
 
-                // Add multiple source formats
-                const quality = await getVideoQuality();
-                const sourceMp4 = document.createElement('source');
-                sourceMp4.src = reel.media[quality]?.mp4 || reel.media; // Assume reel.media has quality variants
-                sourceMp4.type = 'video/mp4';
+                // Support multiple video formats
+                const formats = [
+                    { src: reel.media, type: 'video/mp4' },
+                    { src: reel.media.replace('.mp4', '.webm'), type: 'video/webm' },
+                    { src: reel.media.replace('.mp4', '.ogg'), type: 'video/ogg' }
+                ];
 
-                const sourceWebm = document.createElement('source');
-                sourceWebm.src = reel.media[quality]?.webm || reel.media.replace('.mp4', '.webm');
-                sourceWebm.type = 'video/webm';
+                const cachedUrl = await fetchAndCache(reel.media);
+                if (!cachedUrl) {
+                    console.log(`Invalid video URL: ${reel.media}`);
+                    return null;
+                }
 
-                video.appendChild(sourceMp4);
-                video.appendChild(sourceWebm);
+                formats.forEach(format => {
+                    const source = document.createElement('source');
+                    source.src = format.src;
+                    source.type = format.type;
+                    video.appendChild(source);
+                });
 
+                // Fallback to cached URL if sources fail
+                video.src = cachedUrl;
+
+                // Thumbnail generation
+                const thumbnailUrl = reel.thumbnail || await generateThumbnail(cachedUrl);
                 const thumbnail = document.createElement('img');
                 thumbnail.className = 'thumbnail';
-                thumbnail.src = reel.thumbnail || "https://via.placeholder.com/150"; // Add thumbnail in reels.json
+                thumbnail.src = thumbnailUrl;
                 div.appendChild(thumbnail);
 
                 const loader = document.createElement('div');
@@ -241,7 +327,8 @@
                 });
                 video.addEventListener('waiting', () => loader.style.display = 'block');
                 video.addEventListener('playing', () => loader.style.display = 'none');
-                video.addEventListener('error', () => {
+                video.addEventListener('error', (e) => {
+                    console.log("Video error:", e);
                     loader.style.display = 'block';
                     loader.innerHTML = 'Load failed';
                 });
@@ -319,7 +406,7 @@
                             loader.style.display = 'none';
                         }
                     });
-                }, { threshold: 0.9 }); // Increased threshold for smoother transitions
+                }, { threshold: 0.9 });
 
                 document.querySelectorAll("video").forEach(video => observer.observe(video));
             }
