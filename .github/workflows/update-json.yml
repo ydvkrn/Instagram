@@ -1,9 +1,9 @@
-name: Update JSON File
+name: Append JSON Data
 
 on:
   schedule:
     - cron: "0 * * * *"  # हर घंटे अपडेट होगा
-  workflow_dispatch:  # मैनुअली रन करने का ऑप्शन
+  workflow_dispatch:  # मैनुअली भी रन कर सकते हैं
 
 jobs:
   update_json:
@@ -15,12 +15,17 @@ jobs:
 
       - name: Fetch latest JSON data
         run: |
-          curl -o profiles.json http://newsagency.lovestoblog.com/profiles.json
+          curl -o new_data.json http://newsagency.lovestoblog.com/profiles.json
 
-      - name: Commit and Push if changed
+      - name: Merge JSON files
+        run: |
+          jq -s '.[0] + .[1]' profiles.json new_data.json > merged.json
+          mv merged.json profiles.json
+
+      - name: Commit and Push changes
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add profiles.json
-          git commit -m "Updated profiles.json" || exit 0
+          git commit -m "Added new JSON data" || exit 0
           git push
