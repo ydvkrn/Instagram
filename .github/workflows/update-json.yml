@@ -1,0 +1,26 @@
+name: Update JSON File
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # हर घंटे अपडेट होगा
+  workflow_dispatch:  # मैनुअली रन करने का ऑप्शन
+
+jobs:
+  update_json:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch latest JSON data
+        run: |
+          curl -o profiles.json http://newsagency.lovestoblog.com/profiles.json
+
+      - name: Commit and Push if changed
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add profiles.json
+          git commit -m "Updated profiles.json" || exit 0
+          git push
