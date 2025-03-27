@@ -24,6 +24,7 @@
             overflow-y: auto;
             scroll-snap-type: y mandatory;
             -webkit-overflow-scrolling: touch;
+            display: none; /* Hidden initially */
         }
 
         .video-container {
@@ -122,9 +123,25 @@
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
         }
+
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+            z-index: 20;
+        }
     </style>
 </head>
 <body>
+    <div id="loading-screen">Loading: 0%</div>
     <div id="reels-container"></div>
     
     <div class="fixed-overlay">
@@ -146,6 +163,8 @@
         const CACHE_NAME = 'reels-cache-v1';
         let allReels = [];
         let currentReels = [];
+        const VIDEOS_PER_BATCH = 20;
+        let currentBatchStart = 0;
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
@@ -200,6 +219,25 @@
             return array;
         }
 
+        async function updateLoadingScreen(percent) {
+            const loadingScreen = document.getElementById('loading-screen');
+            loadingScreen.textContent = `Loading: ${percent}%`;
+        }
+
+        async function showLoadingScreen() {
+            const loadingScreen = document.getElementById('loading-screen');
+            const reelsContainer = document.getElementById('reels-container');
+            loadingScreen.style.display = 'flex';
+            reelsContainer.style.display = 'none';
+        }
+
+        async function hideLoadingScreen() {
+            const loadingScreen = document.getElementById('loading-screen');
+            const reelsContainer = document.getElementById('reels-container');
+            loadingScreen.style.display = 'none';
+            reelsContainer.style.display = 'flex';
+        }
+
         Promise.all([
             fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json')
                 .then(res => res.ok ? res.json() : Promise.reject('Profiles fetch failed'))
@@ -227,7 +265,7 @@
                 };
             }
 
-            async function createVideoElement(reel, index, isLast) {
+            async function createVideoElement(reel, index) {
                 const div = document.createElement('div');
                 div.className = 'video-container';
 
@@ -238,31 +276,36 @@
                 video.loop = false;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
-                video.preload = 'auto'; // Preload video data
+
+                const cachedUrl = await fetchAndCache(reel.media);
+                if (!cachedUrl || !(await isValidVideoUrl(cachedUrl))) {
+                    console.log(`Invalid video URL: ${reel.media}`);
+                    return null;
+                }
+                video.src = cachedUrl; // Set src immediately
 
                 const loader = document.createElement('div');
                 loader.className = 'video-loader';
                 div.appendChild(loader);
 
-                const cachedUrl = await fetchAndCache(reel.media);
-                if (!cachedUrl || !(await isValidVideoUrl(cachedUrl))) {
-                    console.log(`Invalid video URL: ${reel.media}`);
+                video.addEventListener('loadstart', () => {
                     loader.style.display = 'block';
-                    loader.innerHTML = 'Video unavailable';
-                    return null; // Don't append invalid videos
-                }
-                video.src = cachedUrl;
-
-                video.addEventListener('loadeddata', () => {
-                    loader.style.display = 'block'; // Show loader until play starts
                 });
 
-                video.addEventListener('play', () => {
-                    loader.style.display = 'none'; // Hide loader when video starts playing
+                video.addEventListener('canplay', () => {
+                    loader.style.display = 'none';
+                    if (index === currentBatchStart) {
+                        video.play().catch(error => console.log("Initial play error:", error));
+                        updateMetadata(reel);
+                    }
                 });
 
                 video.addEventListener('waiting', () => {
-                    loader.style.display = 'block'; // Show loader when buffering
+                    loader.style.display = 'block';
+                });
+
+                video.addEventListener('playing', () => {
+                    loader.style.display = 'none';
                 });
 
                 video.addEventListener('error', () => {
@@ -283,45 +326,39 @@
                     showLikeAnimation(div, e);
                 });
 
-                if (isLast) {
-                    video.addEventListener('ended', () => {
-                        resetAndShuffleReels();
-                    });
-                }
-
                 div.appendChild(video);
                 return div;
             }
 
-            async function loadVideos() {
+            async function preloadVideoSources(startIndex) {
+                const endIndex = Math.min(startIndex + VIDEOS_PER_BATCH, currentReels.length);
+                const batchReels = currentReels.slice(startIndex, endIndex);
+                const total = batchReels.length;
+                let loaded = 0;
+
+                await showLoadingScreen();
                 container.innerHTML = '';
-                for (let i = 0; i < currentReels.length; i++) {
-                    const isLast = i === currentReels.length - 1;
-                    const videoElement = await createVideoElement(currentReels[i], i, isLast)
-                        .catch(err => {
-                            console.log(`Video creation failed: ${err}`);
-                            return null;
-                        });
-                    if (videoElement) container.appendChild(videoElement);
+
+                for (let i = 0; i < total; i++) {
+                    const reel = batchReels[i];
+                    const index = startIndex + i;
+                    const videoElement = await createVideoElement(reel, index);
+                    if (videoElement) {
+                        container.appendChild(videoElement);
+                    }
+                    loaded++;
+                    const percent = Math.floor((loaded / total) * 100);
+                    await updateLoadingScreen(percent);
                 }
+
                 if (container.children.length === 0) {
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No valid videos available.</div>';
-                    return;
+                    await hideLoadingScreen();
+                    return false;
                 }
-                enableScrollPlayback();
-            }
 
-            function resetAndShuffleReels() {
-                currentReels = shuffleArray([...allReels]);
-                const lastSeenId = localStorage.getItem('lastSeenReelId');
-                if (lastSeenId && currentReels.length > 1) {
-                    const lastSeenIndex = currentReels.findIndex(reel => reel.id === lastSeenId);
-                    if (lastSeenIndex === 0) {
-                        const randomIndex = Math.floor(Math.random() * (currentReels.length - 1)) + 1;
-                        [currentReels[0], currentReels[randomIndex]] = [currentReels[randomIndex], currentReels[0]];
-                    }
-                }
-                loadVideos();
+                await hideLoadingScreen();
+                return true;
             }
 
             function updateMetadata(reel) {
@@ -347,28 +384,28 @@
                         if (entry.isIntersecting) {
                             if (currentVideo && currentVideo !== video) {
                                 currentVideo.pause();
-                                const prevLoader = currentVideo.parentElement.querySelector('.video-loader');
-                                prevLoader.style.display = 'none';
                             }
                             currentVideo = video;
                             video.muted = !isAudioEnabled;
-                            
-                            // Only play if video has loaded some data
-                            if (video.readyState >= 2) { // HAVE_CURRENT_DATA or better
-                                video.play().catch(() => {
-                                    loader.style.display = 'block';
-                                });
-                            } else {
-                                loader.style.display = 'block';
-                                video.addEventListener('loadeddata', () => {
-                                    video.play().catch(() => {
+
+                            const playPromise = video.play();
+                            if (playPromise !== undefined) {
+                                playPromise
+                                    .then(() => {
+                                        loader.style.display = 'none';
+                                    })
+                                    .catch(error => {
+                                        console.log("Play error:", error);
                                         loader.style.display = 'block';
                                     });
-                                }, { once: true });
                             }
 
                             const reel = currentReels[index];
                             if (reel) updateMetadata(reel);
+
+                            if (index === currentBatchStart + VIDEOS_PER_BATCH - 1) {
+                                loadNextBatch();
+                            }
                         } else if (video !== currentVideo) {
                             video.pause();
                             loader.style.display = 'none';
@@ -376,7 +413,25 @@
                     });
                 }, { threshold: 0.7 });
 
-                document.querySelectorAll("video").forEach(video => observer.observe(video));
+                // Observe all videos explicitly
+                const videos = document.querySelectorAll("video");
+                console.log(`Observing ${videos.length} videos`); // Debug log
+                videos.forEach(video => observer.observe(video));
+            }
+
+            async function loadNextBatch() {
+                currentBatchStart += VIDEOS_PER_BATCH;
+                if (currentBatchStart < currentReels.length) {
+                    const success = await preloadVideoSources(currentBatchStart);
+                    if (success) {
+                        enableScrollPlayback();
+                    }
+                } else {
+                    currentBatchStart = 0;
+                    currentReels = shuffleArray([...allReels]);
+                    await preloadVideoSources(currentBatchStart);
+                    enableScrollPlayback();
+                }
             }
 
             function showFullTitle() {
@@ -398,11 +453,15 @@
                 }, 500);
             }
 
-            loadVideos();
+            // Initial load
+            preloadVideoSources(currentBatchStart).then(success => {
+                if (success) enableScrollPlayback();
+            });
         })
         .catch(error => {
             console.error('Error loading data:', error);
             document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
+            document.getElementById('loading-screen').style.display = 'none';
         });
     </script>
 </body>
