@@ -13,21 +13,9 @@
       "verified": true
     },
     {
-      "id": "PM",
-      "username": "modi",
-      "profile": "https://i.postimg.cc/6pkHH2PD/image.jpg",
-      "verified": false
-    },
-    {
       "id": "SL",
       "username": "imlana",
       "profile": "https://upload.wikimedia.org/wikipedia/commons/b/b4/Lana_Rhoades_2-2017_%28cropped%29.jpg",
-      "verified": true
-    },
-    {
-      "id": "MM",
-      "username": "meme",
-      "profile": "https://i.pinimg.com/originals/96/cd/7e/96cd7e329caf7040d9f6ddfea710ebcd.gif",
       "verified": true
     }
   ]
