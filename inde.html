@@ -196,13 +196,18 @@
             try {
                 const cache = await caches.open(CACHE_NAME);
                 let cachedResponse = await cache.match(url);
-                if (cachedResponse) return cachedResponse.url;
+                if (cachedResponse) {
+                    console.log(`Cache hit for ${url}`);
+                    return cachedResponse.url;
+                }
 
                 const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
                 if (response.ok) {
                     await cache.put(url, response.clone());
+                    console.log(`Fetched and cached ${url}`);
                     return url;
                 }
+                console.error(`Fetch failed for ${url}`);
                 return null;
             } catch (error) {
                 console.error(`Cache fetch failed for ${url}:`, error);
@@ -255,6 +260,7 @@
                 .catch(() => ({ reels: [] }))
         ])
         .then(([profilesData, reelsData]) => {
+            console.log('Profiles and reels data fetched successfully');
             const profiles = profilesData.profiles || [];
             allReels = reelsData.reels || [];
             currentReels = shuffleArray([...allReels]);
@@ -488,4 +494,9 @@
         })
         .catch(error => {
             console.error('Error loading data:', error);
-            document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load
+            document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
+            document.getElementById('loading-screen').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
