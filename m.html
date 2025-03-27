@@ -116,6 +116,14 @@
             cursor: pointer;
         }
 
+        .like-animation {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            opacity: 0;
+            transition: opacity 0.9s ease-in-out;
+        }
+
         #loading-screen {
             position: fixed;
             top: 0;
@@ -150,6 +158,9 @@
 
     <script>
         let fullTitle = "";
+        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true';
+        const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000;
+        const CACHE_NAME = 'reels-cache-v1';
         let allReels = [];
         let currentReels = [];
         const VIDEOS_PER_BATCH = 20;
@@ -158,6 +169,42 @@
         // URL se reelId extract karna
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
+
+        function setAudioPersistence() {
+            localStorage.setItem('audioEnabled', 'true');
+            localStorage.setItem('audioTimestamp', Date.now());
+        }
+
+        function shouldKeepAudioEnabled() {
+            const timestamp = localStorage.getItem('audioTimestamp');
+            if (!timestamp) return false;
+            return Date.now() - parseInt(timestamp) < AUDIO_PERSISTENCE_DURATION;
+        }
+
+        if (shouldKeepAudioEnabled()) {
+            isAudioEnabled = true;
+        } else {
+            localStorage.removeItem('audioEnabled');
+            localStorage.removeItem('audioTimestamp');
+        }
+
+        async function fetchAndCache(url) {
+            try {
+                const cache = await caches.open(CACHE_NAME);
+                let cachedResponse = await cache.match(url);
+                if (cachedResponse) return cachedResponse.url;
+
+                const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+                if (response.ok) {
+                    await cache.put(url, response.clone());
+                    return url;
+                }
+                return url; // Fail hone par bhi URL return karo
+            } catch (error) {
+                console.error(`Cache fetch failed for ${url}:`, error);
+                return url;
+            }
+        }
 
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -187,17 +234,19 @@
         }
 
         Promise.all([
-            fetch('profiles.json')
-                .then(res => res.ok ? res.json() : Promise.reject('Profiles fetch failed'))
-                .catch(() => ({ profiles: [] })),
-            fetch('reels.json')
-                .then(res => res.ok ? res.json() : Promise.reject('Reels fetch failed'))
-                .catch(() => ({ reels: [] }))
+            fetch('profiles.json').then(res => res.ok ? res.json() : ({ profiles: [] })).catch(() => ({ profiles: [] })),
+            fetch('reels.json').then(res => res.ok ? res.json() : ({ reels: [] })).catch(() => ({ reels: [] }))
         ])
         .then(([profilesData, reelsData]) => {
             const profiles = profilesData.profiles || [];
             allReels = reelsData.reels || [];
             currentReels = shuffleArray([...allReels]);
+
+            if (currentReels.length === 0) {
+                document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No reels available.</div>';
+                document.getElementById('loading-screen').style.display = 'none';
+                return;
+            }
 
             // URL mein reelId ke hisaab se initial batch set karna
             if (initialReelId) {
@@ -228,11 +277,15 @@
                 const video = document.createElement('video');
                 video.playsInline = true;
                 video.controls = false;
-                video.muted = false; // Audio default on rakha
+                video.muted = !isAudioEnabled;
                 video.loop = true;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
-                video.src = reel.media; // Direct media URL use karenge
+
+                // Test ke liye sample video URL, tum apna URL daal dena
+                const mediaUrl = reel.media === "video.com/1.mp4" ? "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4" : reel.media;
+                const cachedUrl = await fetchAndCache(mediaUrl);
+                video.src = cachedUrl;
 
                 const loader = document.createElement('div');
                 loader.className = 'video-loader';
@@ -261,6 +314,19 @@
                 video.addEventListener('error', () => {
                     loader.style.display = 'block';
                     loader.innerHTML = 'Load failed';
+                });
+
+                video.addEventListener('click', () => {
+                    if (!isAudioEnabled) {
+                        isAudioEnabled = true;
+                        setAudioPersistence();
+                        document.querySelectorAll('video').forEach(v => v.muted = false);
+                        video.play().catch(error => console.log("Play error:", error));
+                    }
+                });
+
+                video.addEventListener('dblclick', (e) => {
+                    showLikeAnimation(div, e);
                 });
 
                 div.appendChild(video);
@@ -301,8 +367,10 @@
             function updateMetadata(reel) {
                 fullTitle = reel.title;
                 title.innerText = reel.title;
-                const profileData = getProfileById(reel.id); // id se profile
-                profilePic.src = profileData.profile;
+                const profileData = getProfileById(reel.id);
+                fetchAndCache(profileData.profile).then(cachedUrl => {
+                    profilePic.src = cachedUrl || "https://i.postimg.cc/3Rh3SjRb/image.jpg";
+                });
                 usernameText.innerText = profileData.username;
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
             }
@@ -320,6 +388,7 @@
                                 currentVideo.pause();
                             }
                             currentVideo = video;
+                            video.muted = !isAudioEnabled;
 
                             const playPromise = video.play();
                             if (playPromise !== undefined) {
@@ -372,12 +441,27 @@
                 alert(fullTitle);
             }
 
+            function showLikeAnimation(container, event) {
+                const heart = document.createElement('img');
+                heart.src = "https://png.pngtree.com/png-vector/20220428/ourmid/pngtree-smooth-glossy-heart-vector-file-ai-and-png-png-image_4557871.png";
+                heart.className = 'like-animation';
+                heart.style.left = `${event.clientX - 40}px`;
+                heart.style.top = `${event.clientY - 40}px`;
+                heart.style.opacity = 1;
+
+                container.appendChild(heart);
+                setTimeout(() => {
+                    heart.style.opacity = 0;
+                    container.removeChild(heart);
+                }, 500);
+            }
+
             // Initial load
             preloadVideoSources(currentBatchStart).then(success => {
                 if (success) enableScrollPlayback();
             });
         })
-        .catch(error => semiflex{
+        .catch(error => {
             console.error('Error loading data:', error);
             document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
             document.getElementById('loading-screen').style.display = 'none';
