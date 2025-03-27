@@ -1,31 +1,33 @@
-name: Append JSON Data
+name: Auto Update JSON
 
 on:
   schedule:
-    - cron: "0 * * * *"  # हर घंटे अपडेट होगा
-  workflow_dispatch:  # मैनुअली भी रन कर सकते हैं
+    - cron: "0 * * * *"  # हर घंटे रन होगा
+  workflow_dispatch:  # मैनुअली भी चला सकते हैं
 
 jobs:
   update_json:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Fetch latest JSON data
-        run: |
-          curl -o new_data.json http://newsagency.lovestoblog.com/profiles.json
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
 
-      - name: Merge JSON files
-        run: |
-          jq -s '.[0] + .[1]' profiles.json new_data.json > merged.json
-          mv merged.json profiles.json
+      - name: Install Dependencies
+        run: pip install requests
 
-      - name: Commit and Push changes
+      - name: Run Python Script
+        run: python update_json.py
+
+      - name: Commit and Push Changes
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add profiles.json
-          git commit -m "Added new JSON data" || exit 0
+          git commit -m "Updated profiles.json" || exit 0
           git push
