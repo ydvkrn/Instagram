@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0,.za viewport-fit=cover">
     <title>Reel Of The Day</title>
     <style>
         body, html {
@@ -192,16 +192,26 @@
         }
 
         async function fetchAndCache(url) {
-            const cache = await caches.open(CACHE_NAME);
-            let cachedResponse = await cache.match(url);
-            if (cachedResponse) return cachedResponse.url;
+            try {
+                const cache = await caches.open(CACHE_NAME);
+                let cachedResponse = await cache.match(url);
+                if (cachedResponse) {
+                    console.log(`Cache hit for ${url}`);
+                    return cachedResponse.url;
+                }
 
-            const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
-            if (response.ok) {
-                await cache.put(url, response.clone());
-                return url;
+                console.log(`Fetching ${url}`);
+                const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+                if (response.ok) {
+                    await cache.put(url, response.clone());
+                    return url;
+                }
+                console.error(`Fetch failed for ${url}: ${response.status}`);
+                return null;
+            } catch (error) {
+                console.error(`Cache/fetch error for ${url}:`, error);
+                return null;
             }
-            return null;
         }
 
         async function generateThumbnail(videoUrl) {
@@ -212,19 +222,24 @@
                 video.preload = 'metadata';
 
                 video.addEventListener('loadedmetadata', () => {
-                    video.currentTime = Math.min(1, video.duration || 1); // Safe fallback
+                    console.log(`Metadata loaded for ${videoUrl}`);
+                    video.currentTime = Math.min(1, video.duration || 1);
                 });
 
                 video.addEventListener('seeked', () => {
                     const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth || 320; // Default width if not available
+                    canvas.width = video.videoWidth || 320;
                     canvas.height = video.videoHeight || 180;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    console.log(`Thumbnail generated for ${videoUrl}`);
                     resolve(canvas.toDataURL('image/jpeg'));
                 });
 
-                video.addEventListener('error', () => resolve(DEFAULT_THUMBNAIL));
+                video.addEventListener('error', () => {
+                    console.error(`Thumbnail generation failed for ${videoUrl}`);
+                    resolve(DEFAULT_THUMBNAIL);
+                });
             });
         }
 
@@ -251,13 +266,32 @@
         }
 
         Promise.all([
-            fetch('profiles.json').then(res => res.ok ? res.json() : ({ profiles: [] })),
-            fetch('reels.json').then(res => res.ok ? res.json() : ({ reels: [] }))
+            fetch('profiles.json').then(res => {
+                if (!res.ok) throw new Error(`Profiles fetch failed: ${res.status}`);
+                return res.json();
+            }).catch(e => {
+                console.error(e);
+                return { profiles: [] };
+            }),
+            fetch('reels.json').then(res => {
+                if (!res.ok) throw new Error(`Reels fetch failed: ${res.status}`);
+                return res.json();
+            }).catch(e => {
+                console.error(e);
+                return { reels: [] };
+            })
         ])
         .then(([profilesData, reelsData]) => {
+            console.log('Profiles:', profilesData);
+            console.log('Reels:', reelsData);
+
             const profiles = profilesData.profiles || [];
             allReels = reelsData.reels || [];
             currentReels = shuffleArray([...allReels]);
+
+            if (allReels.length === 0) {
+                throw new Error("No reels found in reels.json");
+            }
 
             const container = document.getElementById('reels-container');
             const profilePic = document.getElementById('profile-pic');
@@ -274,6 +308,7 @@
             }
 
             async function createVideoElement(reel, index) {
+                console.log(`Creating video element for reel: ${reel.media}`);
                 const div = document.createElement('div');
                 div.className = 'video-container';
 
@@ -285,30 +320,26 @@
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
 
-                // Support multiple video formats
+                const cachedUrl = await fetchAndCache(reel.media);
+                if (!cachedUrl) {
+                    console.error(`Invalid video URL: ${reel.media}`);
+                    return null;
+                }
+
+                // Multiple format support
                 const formats = [
                     { src: reel.media, type: 'video/mp4' },
                     { src: reel.media.replace('.mp4', '.webm'), type: 'video/webm' },
                     { src: reel.media.replace('.mp4', '.ogg'), type: 'video/ogg' }
                 ];
-
-                const cachedUrl = await fetchAndCache(reel.media);
-                if (!cachedUrl) {
-                    console.log(`Invalid video URL: ${reel.media}`);
-                    return null;
-                }
-
                 formats.forEach(format => {
                     const source = document.createElement('source');
                     source.src = format.src;
                     source.type = format.type;
                     video.appendChild(source);
                 });
+                video.src = cachedUrl; // Fallback
 
-                // Fallback to cached URL if sources fail
-                video.src = cachedUrl;
-
-                // Thumbnail generation
                 const thumbnailUrl = reel.thumbnail || await generateThumbnail(cachedUrl);
                 const thumbnail = document.createElement('img');
                 thumbnail.className = 'thumbnail';
@@ -319,16 +350,20 @@
                 loader.className = 'video-loader';
                 div.appendChild(loader);
 
-                video.addEventListener('loadstart', () => loader.style.display = 'block');
+                video.addEventListener('loadstart', () => {
+                    console.log(`Load started for ${reel.media}`);
+                    loader.style.display = 'block';
+                });
                 video.addEventListener('canplay', () => {
+                    console.log(`Can play ${reel.media}`);
                     loader.style.display = 'none';
                     thumbnail.style.display = 'none';
-                    if (index === currentBatchStart) video.play().catch(e => console.log("Play error:", e));
+                    if (index === currentBatchStart) video.play().catch(e => console.error("Play error:", e));
                 });
                 video.addEventListener('waiting', () => loader.style.display = 'block');
                 video.addEventListener('playing', () => loader.style.display = 'none');
                 video.addEventListener('error', (e) => {
-                    console.log("Video error:", e);
+                    console.error(`Video error for ${reel.media}:`, e);
                     loader.style.display = 'block';
                     loader.innerHTML = 'Load failed';
                 });
@@ -337,7 +372,7 @@
                         isAudioEnabled = true;
                         setAudioPersistence();
                         document.querySelectorAll('video').forEach(v => v.muted = false);
-                        video.play().catch(e => console.log("Play error:", e));
+                        video.play().catch(e => console.error("Play error:", e));
                     }
                 });
                 video.addEventListener('dblclick', (e) => showLikeAnimation(div, e));
@@ -395,7 +430,7 @@
                             if (currentVideo && currentVideo !== video) currentVideo.pause();
                             currentVideo = video;
                             video.muted = !isAudioEnabled;
-                            video.play().catch(e => console.log("Play error:", e)).then(() => loader.style.display = 'none');
+                            video.play().catch(e => console.error("Play error:", e)).then(() => loader.style.display = 'none');
 
                             const reel = currentReels[index];
                             if (reel) updateMetadata(reel);
@@ -445,11 +480,12 @@
 
             preloadVideoSources(currentBatchStart).then(success => {
                 if (success) enableScrollPlayback();
-            });
+                else console.error("Initial preload failed");
+            }).catch(e => console.error("Preload error:", e));
         })
         .catch(error => {
             console.error('Error loading data:', error);
-            document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
+            document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels. Check console for details.</div>';
             document.getElementById('loading-screen').style.display = 'none';
         });
     </script>
