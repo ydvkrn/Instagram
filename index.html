@@ -171,11 +171,7 @@
                 let cachedResponse = await cache.match(url);
                 if (cachedResponse) return cachedResponse.url;
 
-                const response = await Promise.race([
-                    fetch(url, { mode: 'cors', cache: 'force-cache' }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
-                ]);
-
+                const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
                 if (response.ok) {
                     await cache.put(url, response.clone());
                     return url;
@@ -189,10 +185,7 @@
 
         async function isValidVideoUrl(url) {
             try {
-                const response = await Promise.race([
-                    fetch(url, { method: 'HEAD', mode: 'cors' }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-                ]);
+                const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
                 return response.ok;
             } catch {
                 return false;
@@ -245,6 +238,7 @@
                 video.loop = false;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
+                video.preload = 'auto'; // Preload video data
 
                 const loader = document.createElement('div');
                 loader.className = 'video-loader';
@@ -255,34 +249,25 @@
                     console.log(`Invalid video URL: ${reel.media}`);
                     loader.style.display = 'block';
                     loader.innerHTML = 'Video unavailable';
-                    setTimeout(() => {
-                        const nextVideo = document.querySelector(`video[data-index="${index + 1}"]`);
-                        if (nextVideo) nextVideo.scrollIntoView();
-                    }, 1500);
-                } else {
-                    video.src = cachedUrl;
+                    return null; // Don't append invalid videos
                 }
+                video.src = cachedUrl;
 
-                video.addEventListener('canplaythrough', () => {
-                    loader.style.display = 'none';
-                    video.dataset.ready = 'true';
-                    if (index === 0) {
-                        video.play().catch(error => console.log("First video play error:", error));
-                        updateMetadata(reel);
-                    }
+                video.addEventListener('loadeddata', () => {
+                    loader.style.display = 'block'; // Show loader until play starts
+                });
+
+                video.addEventListener('play', () => {
+                    loader.style.display = 'none'; // Hide loader when video starts playing
                 });
 
                 video.addEventListener('waiting', () => {
-                    if (video.dataset.ready !== 'true') loader.style.display = 'block';
+                    loader.style.display = 'block'; // Show loader when buffering
                 });
 
-                video.addEventListener('error', (e) => {
+                video.addEventListener('error', () => {
                     loader.style.display = 'block';
                     loader.innerHTML = 'Load failed';
-                    setTimeout(() => {
-                        const nextVideo = document.querySelector(`video[data-index="${index + 1}"]`);
-                        if (nextVideo) nextVideo.scrollIntoView();
-                    }, 1500);
                 });
 
                 video.addEventListener('click', () => {
@@ -318,6 +303,10 @@
                             return null;
                         });
                     if (videoElement) container.appendChild(videoElement);
+                }
+                if (container.children.length === 0) {
+                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No valid videos available.</div>';
+                    return;
                 }
                 enableScrollPlayback();
             }
@@ -358,24 +347,31 @@
                         if (entry.isIntersecting) {
                             if (currentVideo && currentVideo !== video) {
                                 currentVideo.pause();
+                                const prevLoader = currentVideo.parentElement.querySelector('.video-loader');
+                                prevLoader.style.display = 'none';
                             }
                             currentVideo = video;
                             video.muted = !isAudioEnabled;
-                            if (video.dataset.ready !== 'true' && !video.src) {
+                            
+                            // Only play if video has loaded some data
+                            if (video.readyState >= 2) { // HAVE_CURRENT_DATA or better
+                                video.play().catch(() => {
+                                    loader.style.display = 'block';
+                                });
+                            } else {
                                 loader.style.display = 'block';
+                                video.addEventListener('loadeddata', () => {
+                                    video.play().catch(() => {
+                                        loader.style.display = 'block';
+                                    });
+                                }, { once: true });
                             }
-                            video.play().catch(() => {
-                                loader.style.display = 'block';
-                                setTimeout(() => {
-                                    const nextVideo = document.querySelector(`video[data-index="${index + 1}"]`);
-                                    if (nextVideo) nextVideo.scrollIntoView();
-                                }, 1500);
-                            });
 
                             const reel = currentReels[index];
                             if (reel) updateMetadata(reel);
                         } else if (video !== currentVideo) {
                             video.pause();
+                            loader.style.display = 'none';
                         }
                     });
                 }, { threshold: 0.7 });
