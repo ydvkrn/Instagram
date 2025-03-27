@@ -116,14 +116,6 @@
             cursor: pointer;
         }
 
-        .like-animation {
-            position: absolute;
-            width: 120px;
-            height: 120px;
-            opacity: 0;
-            transition: opacity 0.9s ease-in-out;
-        }
-
         #loading-screen {
             position: fixed;
             top: 0;
@@ -158,9 +150,6 @@
 
     <script>
         let fullTitle = "";
-        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true';
-        const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000;
-        const CACHE_NAME = 'reels-cache-v1';
         let allReels = [];
         let currentReels = [];
         const VIDEOS_PER_BATCH = 20;
@@ -169,51 +158,6 @@
         // URL se reelId extract karna
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
-
-        function setAudioPersistence() {
-            localStorage.setItem('audioEnabled', 'true');
-            localStorage.setItem('audioTimestamp', Date.now());
-        }
-
-        function shouldKeepAudioEnabled() {
-            const timestamp = localStorage.getItem('audioTimestamp');
-            if (!timestamp) return false;
-            return Date.now() - parseInt(timestamp) < AUDIO_PERSISTENCE_DURATION;
-        }
-
-        if (shouldKeepAudioEnabled()) {
-            isAudioEnabled = true;
-        } else {
-            localStorage.removeItem('audioEnabled');
-            localStorage.removeItem('audioTimestamp');
-        }
-
-        async function fetchAndCache(url) {
-            try {
-                const cache = await caches.open(CACHE_NAME);
-                let cachedResponse = await cache.match(url);
-                if (cachedResponse) return cachedResponse.url;
-
-                const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
-                if (response.ok) {
-                    await cache.put(url, response.clone());
-                    return url;
-                }
-                return null;
-            } catch (error) {
-                console.error(`Cache fetch failed for ${url}:`, error);
-                return null;
-            }
-        }
-
-        async function isValidVideoUrl(url) {
-            try {
-                const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
-                return response.ok;
-            } catch {
-                return false;
-            }
-        }
 
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -284,17 +228,11 @@
                 const video = document.createElement('video');
                 video.playsInline = true;
                 video.controls = false;
-                video.muted = !isAudioEnabled;
+                video.muted = false; // Audio default on rakha
                 video.loop = true;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
-
-                const cachedUrl = await fetchAndCache(reel.media);
-                if (!cachedUrl || !(await isValidVideoUrl(cachedUrl))) {
-                    console.log(`Invalid video URL: ${reel.media}`);
-                    return null;
-                }
-                video.src = cachedUrl;
+                video.src = reel.media; // Direct media URL use karenge
 
                 const loader = document.createElement('div');
                 loader.className = 'video-loader';
@@ -323,19 +261,6 @@
                 video.addEventListener('error', () => {
                     loader.style.display = 'block';
                     loader.innerHTML = 'Load failed';
-                });
-
-                video.addEventListener('click', () => {
-                    if (!isAudioEnabled) {
-                        isAudioEnabled = true;
-                        setAudioPersistence();
-                        document.querySelectorAll('video').forEach(v => v.muted = false);
-                        video.play().catch(error => console.log("Play error:", error));
-                    }
-                });
-
-                video.addEventListener('dblclick', (e) => {
-                    showLikeAnimation(div, e);
                 });
 
                 div.appendChild(video);
@@ -376,13 +301,10 @@
             function updateMetadata(reel) {
                 fullTitle = reel.title;
                 title.innerText = reel.title;
-                const profileData = getProfileById(reel.id); // id se profile fetch
-                fetchAndCache(profileData.profile).then(cachedUrl => {
-                    profilePic.src = cachedUrl || "https://example.com/default-profile.jpg";
-                });
+                const profileData = getProfileById(reel.id); // id se profile
+                profilePic.src = profileData.profile;
                 usernameText.innerText = profileData.username;
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
-                localStorage.setItem('lastSeenReelId', reel.reelId); // reelId store karna
             }
 
             function enableScrollPlayback() {
@@ -398,7 +320,6 @@
                                 currentVideo.pause();
                             }
                             currentVideo = video;
-                            video.muted = !isAudioEnabled;
 
                             const playPromise = video.play();
                             if (playPromise !== undefined) {
@@ -412,10 +333,9 @@
                                     });
                             }
 
-                            const reel Wesbite ek reel ka reelId se fetch ho aur scroll karne par next reelId ka video play ho like (eg. myweb.github.io/Instagram/(reelId) aur scroll par next reelId load ho aur uske hisaab se video play ho jaayega ya nahi) mein changes batao taki sahi se kaam karein.reel = currentReels[index];
+                            const reel = currentReels[index];
                             if (reel) {
                                 updateMetadata(reel);
-                                // URL mein reelId update karna
                                 window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
                             }
 
@@ -430,7 +350,6 @@
                 }, { threshold: 0.7 });
 
                 const videos = document.querySelectorAll("video");
-                console.log(`Observing ${videos.length} videos`);
                 videos.forEach(video => observer.observe(video));
             }
 
@@ -453,27 +372,12 @@
                 alert(fullTitle);
             }
 
-            function showLikeAnimation(container, event) {
-                const heart = document.createElement('img');
-                heart.src = "https://png.pngtree.com/png-vector/20220428/ourmid/pngtree-smooth-glossy-heart-vector-file-ai-and-png-png-image_4557871.png";
-                heart.className = 'like-animation';
-                heart.style.left = `${event.clientX - 40}px`;
-                heart.style.top = `${event.clientY - 40}px`;
-                heart.style.opacity = 1;
-
-                container.appendChild(heart);
-                setTimeout(() => {
-                    heart.style.opacity = 0;
-                    container.removeChild(heart);
-                }, 500);
-            }
-
             // Initial load
             preloadVideoSources(currentBatchStart).then(success => {
                 if (success) enableScrollPlayback();
             });
         })
-        .catch(error => {
+        .catch(error => semiflex{
             console.error('Error loading data:', error);
             document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
             document.getElementById('loading-screen').style.display = 'none';
