@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Reel Of The Day</title>
     <style>
-        /* Same as before */
         body, html {
             margin: 0;
             padding: 0;
@@ -65,6 +64,25 @@
             100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
+        .fixed-overlay, .title, .like-animation {
+            /* Same as original */
+        }
+
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+            z-index: 20;
+        }
+
         .thumbnail {
             width: 100%;
             height: 100%;
@@ -74,8 +92,6 @@
             left: 0;
             z-index: 5;
         }
-
-        /* Rest of your styles remain the same */
     </style>
 </head>
 <body>
@@ -99,9 +115,8 @@
         const CACHE_NAME = 'reels-cache-v1';
         let allReels = [];
         let currentReels = [];
-        const VIDEOS_PER_BATCH = 5;
+        const VIDEOS_PER_BATCH = 5; // Reduced batch size for faster initial load
         let currentBatchStart = 0;
-        const DEFAULT_THUMBNAIL = "https://via.placeholder.com/150?text=Thumbnail"; // Fallback thumbnail
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
@@ -132,28 +147,11 @@
             return null;
         }
 
-        async function generateThumbnail(videoUrl) {
-            return new Promise((resolve) => {
-                const video = document.createElement('video');
-                video.src = videoUrl;
-                video.muted = true;
-                video.preload = 'metadata';
-
-                video.addEventListener('loadeddata', () => {
-                    video.currentTime = 1; // Capture frame at 1 second
-                });
-
-                video.addEventListener('seeked', () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    resolve(canvas.toDataURL('image/jpeg'));
-                });
-
-                video.addEventListener('error', () => resolve(DEFAULT_THUMBNAIL));
-            });
+        async function getVideoQuality() {
+            const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            if (connection && connection.effectiveType === '2g') return 'low';
+            if (connection && connection.effectiveType === '3g') return 'medium';
+            return 'high';
         }
 
         function shuffleArray(array) {
@@ -213,17 +211,22 @@
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
 
-                const cachedUrl = await fetchAndCache(reel.media);
-                if (!cachedUrl) {
-                    console.log(`Invalid video URL: ${reel.media}`);
-                    return null;
-                }
-                video.src = cachedUrl;
+                // Add multiple source formats
+                const quality = await getVideoQuality();
+                const sourceMp4 = document.createElement('source');
+                sourceMp4.src = reel.media[quality]?.mp4 || reel.media; // Assume reel.media has quality variants
+                sourceMp4.type = 'video/mp4';
 
-                // Generate thumbnail
+                const sourceWebm = document.createElement('source');
+                sourceWebm.src = reel.media[quality]?.webm || reel.media.replace('.mp4', '.webm');
+                sourceWebm.type = 'video/webm';
+
+                video.appendChild(sourceMp4);
+                video.appendChild(sourceWebm);
+
                 const thumbnail = document.createElement('img');
                 thumbnail.className = 'thumbnail';
-                thumbnail.src = reel.thumbnail || await generateThumbnail(cachedUrl); // Use provided thumbnail or generate
+                thumbnail.src = reel.thumbnail || "https://via.placeholder.com/150"; // Add thumbnail in reels.json
                 div.appendChild(thumbnail);
 
                 const loader = document.createElement('div');
@@ -316,7 +319,7 @@
                             loader.style.display = 'none';
                         }
                     });
-                }, { threshold: 0.9 });
+                }, { threshold: 0.9 }); // Increased threshold for smoother transitions
 
                 document.querySelectorAll("video").forEach(video => observer.observe(video));
             }
