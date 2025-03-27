@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Reel Of The Day</title>
     <style>
+        /* Keeping your existing styles unchanged */
         body, html {
             margin: 0;
             padding: 0;
@@ -133,7 +134,7 @@
         <div class="user-info">
             <div class="username" id="username">
                 <span id="username-text">Loading...</span>
-                <img class="verify-badge" id="verify-badge" src="https://i.postimg.cc/J0fgKwmW/instagram-verification-badge.png" style="display: none;">
+                <img class="verify-badge" id="verify-badge" src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Twitter_Verified_Badge_Gold.svg/2048px-Twitter_Verified_Badge_Gold.svg.png" style="display: none;">
             </div>
         </div>
     </div>
@@ -209,7 +210,11 @@
             const title = document.getElementById('title');
 
             function getProfileById(id) {
-                return profiles.find(profile => profile.id === id) || { username: "Unknown", profile: "https://example.com/default-profile.jpg", verified: false };
+                return profiles.find(profile => profile.id === id) || { 
+                    username: "bot", 
+                    profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg", 
+                    verified: true
+                };
             }
 
             async function createVideoElement(reel, index) {
@@ -225,9 +230,9 @@
                 const video = document.createElement('video');
                 video.src = await fetchAndCache(reel.media) || '';
                 video.playsInline = true;
-                video.preload = 'metadata'; // Minimal preload for all
+                video.preload = 'none'; // Changed from 'metadata' to 'none'
                 video.controls = false;
-                video.muted = true;
+                video.muted = !isAudioEnabled;
                 video.loop = true;
 
                 const loader = document.createElement('div');
@@ -265,11 +270,20 @@
             }
 
             async function loadAllVideos() {
+                const videoElements = [];
                 for (let i = 0; i < reels.length; i++) {
                     const videoElement = await createVideoElement(reels[i], i);
-                    if (videoElement) container.appendChild(videoElement);
+                    if (videoElement) videoElements.push(videoElement);
                 }
+                
+                // Shuffle videos and append
+                const shuffledVideos = videoElements.sort(() => Math.random() - 0.5);
+                shuffledVideos.forEach(element => container.appendChild(element));
+                
                 enableScrollPlayback();
+                
+                // Scroll to first video
+                container.scrollTop = 0;
             }
 
             function enableScrollPlayback() {
@@ -286,20 +300,11 @@
                                 if (currentVideo && currentVideo !== video) {
                                     currentVideo.pause();
                                     currentVideo.currentTime = 0;
-                                    currentVideo.preload = 'metadata';
+                                    currentVideo.preload = 'none';
                                 }
                                 currentVideo = video;
                                 video.preload = 'auto';
                                 video.muted = !isAudioEnabled;
-
-                                // Pause all other videos
-                                document.querySelectorAll('video').forEach(v => {
-                                    if (v !== video) {
-                                        v.pause();
-                                        v.currentTime = 0;
-                                        v.preload = 'metadata';
-                                    }
-                                });
 
                                 if (video.dataset.ready !== 'true') {
                                     loader.style.display = 'block';
@@ -315,10 +320,10 @@
                                 title.innerText = fullTitle;
                                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
                             } else {
-                                video.preload = 'metadata';
+                                video.pause();
+                                video.currentTime = 0;
+                                video.preload = 'none';
                                 if (video === currentVideo) {
-                                    video.pause();
-                                    video.currentTime = 0;
                                     currentVideo = null;
                                 }
                             }
