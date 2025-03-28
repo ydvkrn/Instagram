@@ -4,7 +4,145 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Reel Of The Day</title>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        #reels-container {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+            background-color: #000;
+        }
+
+        .video-container {
+            position: absolute;
+            width: 100%;
+            height: 100vh;
+            top: 0;
+            left: 0;
+            background-color: #000;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background-color: #000;
+        }
+
+        .fixed-overlay {
+            position: fixed;
+            bottom: 80px;
+            left: 15px;
+            width: calc(100% - 30px);
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: transparent;
+            z-index: 10;
+        }
+
+        .profile-pic {
+            width: 45px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid white;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .user-info {
+            margin-left: 10px;
+            color: white;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .username {
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+
+        .verify-badge {
+            width: 16px;
+            height: 16px;
+            margin-left: 5px;
+        }
+
+        .title {
+            font-size: 14px;
+            opacity: 0.9;
+            position: fixed;
+            bottom: 40px;
+            left: 15px;
+            width: calc(100% - 30px);
+            color: white;
+            padding: 5px 10px;
+            background: transparent;
+            border-radius: 8px;
+            white-space: normal;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.8);
+            width: 0;
+            z-index: 11;
+        }
+
+        body {
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+        }
+
+        /* Double-tap Like Animation */
+        .like-animation {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            opacity: 0;
+            z-index: 12;
+            pointer-events: none;
+            animation: popBounce 0.5s ease-out forwards;
+        }
+
+        @keyframes popBounce {
+            0% { opacity: 0; transform: scale(0); }
+            50% { opacity: 1; transform: scale(1.3); }
+            75% { opacity: 0.9; transform: scale(1.1); }
+            100% { opacity: 0; transform: scale(1); }
+        }
+
+        /* Top-right logo */
+        .top-right-logo {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            z-index: 10;
+            pointer-events: none;
+        }
+    </style>
 </head>
 <body oncontextmenu="return false;">
     <div id="reels-container"></div>
@@ -24,9 +162,302 @@
     <!-- Top-right logo -->
     <img class="top-right-logo" src="https://i.postimg.cc/X77btM3F/20250328-151255.png" alt="Logo">
 
-    <script src="js/utils.js"></script>
-    <script src="js/dataLoader.js"></script>
-    <script src="js/videoHandler.js"></script>
-    <script src="js/main.js"></script>
+    <script>
+        let fullTitle = "";
+        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false;
+        let allReels = [];
+        let currentIndex = 0;
+        let touchStartY = 0;
+        let isTransitioning = false;
+        let currentVideo = null;
+        let holdTimer = null;
+        let likes = new Map(); // Map to store like counts for each reel
+        let lastTap = 0; // For double-tap detection
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialReelId = urlParams.get('reelId') || null;
+
+        const container = document.getElementById('reels-container');
+        const profilePic = document.getElementById('profile-pic');
+        const usernameText = document.getElementById('username-text');
+        const usernameContainer = document.getElementById('username');
+        const verifyBadge = document.getElementById('verify-badge');
+        const title = document.getElementById('title');
+
+        function setAudioPersistence() {
+            localStorage.setItem('audioEnabled', 'true');
+            isAudioEnabled = true;
+            if (currentVideo) {
+                currentVideo.muted = false;
+                currentVideo.play().catch((error) => console.log("Play error:", error));
+            }
+        }
+
+        async function checkUrlValidity(url) {
+            try {
+                const response = await fetch(url, { method: 'HEAD' });
+                return response.ok;
+            } catch (error) {
+                console.log(`URL invalid or inaccessible: ${url}`, error);
+                return false;
+            }
+        }
+
+        async function loadData() {
+            try {
+                const [profilesResponse, reelsResponse] = await Promise.all([
+                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json').then(res => {
+                        if (!res.ok) throw new Error('Profiles fetch failed');
+                        return res.json();
+                    }),
+                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json').then(res => {
+                        if (!res.ok) throw new Error('Reels fetch failed');
+                        return res.json();
+                    })
+                ]);
+
+                const profiles = profilesResponse.profiles || [];
+                let reels = reelsResponse.reels || [];
+
+                if (reels.length === 0) {
+                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No reels available.</div>';
+                    return { profiles, success: false };
+                }
+
+                // Filter out invalid URLs
+                allReels = [];
+                for (const reel of reels) {
+                    const isValid = await checkUrlValidity(reel.media);
+                    if (isValid) {
+                        allReels.push(reel);
+                    } else {
+                        console.warn(`Skipping invalid URL: ${reel.media}`);
+                    }
+                }
+
+                if (allReels.length === 0) {
+                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No valid reels available.</div>';
+                    return { profiles, success: false };
+                }
+
+                console.log('Valid Reels Loaded:', allReels);
+
+                // Initialize likes for each reel
+                allReels.forEach(reel => {
+                    if (!likes.has(reel.reelId)) {
+                        likes.set(reel.reelId, { count: 0, liked: false });
+                    }
+                });
+
+                return { profiles, success: true };
+            } catch (error) {
+                console.error('Error loading data:', error);
+                container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Loading failed. Retrying...</div>';
+                setTimeout(() => loadData(), 2000);
+                return { profiles: [], success: false };
+            }
+        }
+
+        async function initialize() {
+            const { profiles, success } = await loadData();
+            if (!success) return;
+
+            currentIndex = initialReelId ? 
+                allReels.findIndex(reel => reel.reelId === initialReelId) : 
+                0;
+            if (currentIndex === -1) currentIndex = 0;
+
+            function getProfileById(id) {
+                return profiles.find(profile => profile.id === id) || { 
+                    username: "bot", 
+                    profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg", 
+                    verified: true
+                };
+            }
+
+            function createVideoElement(reel, index) {
+                const div = document.createElement('div');
+                div.className = 'video-container';
+
+                const video = document.createElement('video');
+                video.playsInline = true;
+                video.controls = false;
+                video.muted = !isAudioEnabled;
+                video.dataset.index = index;
+                video.dataset.title = reel.title;
+                video.src = reel.media;
+                video.preload = 'auto'; // Preload video
+                video.setAttribute('playsinline', ''); // Mobile compatibility
+                video.setAttribute('webkit-playsinline', ''); // iOS compatibility
+
+                const progressBar = document.createElement('div');
+                progressBar.className = 'progress-bar';
+                document.body.appendChild(progressBar);
+
+                video.addEventListener('canplay', () => {
+                    console.log(`Video can play: ${reel.media}`);
+                    currentVideo = video;
+                    updateMetadata(reel);
+                    video.play().catch((error) => console.log(`Play error for ${reel.media}:`, error));
+                });
+
+                video.addEventListener('timeupdate', () => {
+                    if (!video.paused) {
+                        const progress = (video.currentTime / video.duration) * 100;
+                        progressBar.style.width = `${progress}%`;
+                    }
+                });
+
+                video.addEventListener('ended', () => {
+                    console.log(`Video ended: ${reel.media}`);
+                    video.currentTime = 0; // Reset to start
+                    video.play().catch((error) => console.log(`Loop play error for ${reel.media}:`, error));
+                });
+
+                video.addEventListener('error', (e) => {
+                    console.error(`Unexpected error for ${reel.media}:`, e);
+                    nextReel(); // Skip if unexpected failure
+                });
+
+                video.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    if (!isAudioEnabled) {
+                        setAudioPersistence();
+                    }
+                });
+
+                div.appendChild(video);
+                return div;
+            }
+
+            function updateMetadata(reel) {
+                fullTitle = reel.title;
+                title.innerText = reel.title;
+                const profileData = getProfileById(reel.id);
+                profilePic.src = profileData.profile || "https://i.postimg.cc/3Rh3SjRb/image.jpg";
+                usernameText.innerText = profileData.username;
+                verifyBadge.style.display = profileData.verified ? "inline" : "none";
+                profilePic.dataset.id = reel.id;
+                usernameContainer.dataset.id = reel.id;
+            }
+
+            function showLikeAnimation(x, y) {
+                const likeImg = document.createElement('img');
+                likeImg.src = 'https://i.postimg.cc/pr68HrJm/1000063176-removebg-preview.png';
+                likeImg.className = 'like-animation';
+                likeImg.style.left = `${x}px`;
+                likeImg.style.top = `${y}px`;
+                container.appendChild(likeImg);
+                setTimeout(() => likeImg.remove(), 500); // Remove after 0.5s animation
+            }
+
+            function loadReel(index) {
+                if (index < 0 || index >= allReels.length) {
+                    console.warn('Index out of bounds:', index);
+                    return;
+                }
+
+                container.innerHTML = '';
+                const existingProgress = document.querySelector('.progress-bar');
+                if (existingProgress) existingProgress.remove();
+
+                const reel = allReels[index];
+                const videoElement = createVideoElement(reel, index);
+                container.appendChild(videoElement);
+                
+                currentVideo = videoElement.querySelector('video');
+                currentVideo.play().catch((error) => console.log(`Initial play error for ${reel.media}:`, error));
+                updateMetadata(reel);
+
+                window.history.pushState({}, document.title, `/Instagram/?reelId=${allReels[index].reelId}`);
+            }
+
+            function nextReel() {
+                if (currentIndex + 1 < allReels.length) {
+                    currentIndex++;
+                    loadReel(currentIndex);
+                }
+            }
+
+            function prevReel() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    loadReel(currentIndex);
+                }
+            }
+
+            function enableScrollPlayback() {
+                let touchStartY = 0;
+                let touchMoveY = 0;
+                let isHolding = false;
+
+                container.addEventListener('touchstart', (e) => {
+                    touchStartY = e.touches[0].clientY;
+                    touchMoveY = touchStartY;
+                    isHolding = true;
+                    clearTimeout(holdTimer);
+                    holdTimer = setTimeout(() => {
+                        if (isHolding && currentVideo) currentVideo.pause();
+                    }, 500);
+                });
+
+                container.addEventListener('touchmove', (e) => {
+                    touchMoveY = e.touches[0].clientY;
+                });
+
+                container.addEventListener('touchend', (e) => {
+                    if (isTransitioning) return;
+                    const touchEndY = e.changedTouches[0].clientY;
+                    const swipeDistance = touchStartY - touchEndY;
+
+                    clearTimeout(holdTimer);
+                    if (isHolding && Math.abs(swipeDistance) < 50 && currentVideo) {
+                        currentVideo.play().catch(() => {});
+                    } else if (swipeDistance > 50) {
+                        isTransitioning = true;
+                        nextReel();
+                        setTimeout(() => { isTransitioning = false; }, 100);
+                    } else if (swipeDistance < -50) {
+                        isTransitioning = true;
+                        prevReel();
+                        setTimeout(() => { isTransitioning = false; }, 100);
+                    }
+                    isHolding = false;
+
+                    // Double-tap to like
+                    const now = new Date().getTime();
+                    const timeSinceLastTap = now - lastTap;
+                    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+                        const reel = allReels[currentIndex];
+                        const reelLikes = likes.get(reel.reelId);
+                        reelLikes.count += 1;
+                        const touchX = e.changedTouches[0].clientX;
+                        const touchY = e.changedTouches[0].clientY;
+                        showLikeAnimation(touchX, touchY);
+                    }
+                    lastTap = now;
+                });
+
+                profilePic.addEventListener('click', () => {
+                    const profileId = profilePic.dataset.id;
+                    window.open(`profiles.html?id=${profileId}`, '_blank');
+                });
+
+                usernameContainer.addEventListener('click', () => {
+                    const profileId = usernameContainer.dataset.id;
+                    window.open(`profiles.html?id=${profileId}`, '_blank');
+                });
+            }
+
+            function showFullTitle() {
+                alert(fullTitle);
+            }
+
+            loadReel(currentIndex);
+            enableScrollPlayback();
+        }
+
+        initialize();
+    </script>
 </body>
 </html>
