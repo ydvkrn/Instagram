@@ -1,6 +1,13 @@
 let currentVideo = null;
 
-function createVideoElement(reel, index) {
+async function createVideoElement(reel, index) {
+    const isValid = await checkUrlValidity(reel.media);
+    if (!isValid) {
+        console.warn(`Skipping invalid URL: ${reel.media}`);
+        nextReel();
+        return null; // Return null to indicate failure
+    }
+
     const div = document.createElement('div');
     div.className = 'video-container';
 
@@ -19,8 +26,9 @@ function createVideoElement(reel, index) {
     progressBar.className = 'progress-bar';
     document.body.appendChild(progressBar);
 
-    video.addEventListener('canplay', () => {
-        console.log(`Video can play: ${reel.media}`);
+    video.addEventListener('loadeddata', () => {
+        console.log(`Video data loaded: ${reel.media}`);
+        document.getElementById('loading').style.display = 'none'; // Hide loading
         currentVideo = video;
         updateMetadata(reel);
         video.play().catch((error) => console.log(`Play error for ${reel.media}:`, error));
