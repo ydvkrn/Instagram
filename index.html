@@ -185,7 +185,7 @@
         let currentIndex = 0;
         let viewedReels = [];
         let touchStartY = 0;
-        let loadedVideos = new Map(); // Store loaded video elements
+        let loadedVideos = new Map(); // Cache for loaded videos
 
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
@@ -235,27 +235,15 @@
         function getRandomReel(excludeIndex) {
             let availableReels = allReels.filter((_, idx) => !viewedReels.includes(idx) && idx !== excludeIndex);
             if (availableReels.length === 0) {
-                return -1; // Indicate end of reels
+                return -1; // End of reels
             }
             const randomIdx = Math.floor(Math.random() * availableReels.length);
             return allReels.indexOf(availableReels[randomIdx]);
         }
 
-        async function fetchWithErrorHandling(url, fallback) {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`Failed to fetch ${url}`);
-                return await response.json();
-            } catch (error) {
-                console.error(`Fetch error for ${url}:`, error);
-                showError(`Failed to load ${url.split('.')[0]}`);
-                return fallback;
-            }
-        }
-
         Promise.all([
-            fetchWithErrorHandling('profiles.json', { profiles: [] }),
-            fetchWithErrorHandling('reels.json', { reels: [] })
+            fetch('profiles.json').then(res => res.ok ? res.json() : ({ profiles: [] })).catch(() => ({ profiles: [] })),
+            fetch('reels.json').then(res => res.ok ? res.json() : ({ reels: [] })).catch(() => ({ reels: [] }))
         ])
         .then(([profilesData, reelsData]) => {
             const profiles = profilesData.profiles || [];
@@ -283,7 +271,6 @@
             }
 
             async function createVideoElement(reel, index, isPreload = false) {
-                // Check if video is already loaded
                 if (loadedVideos.has(index)) {
                     return loadedVideos.get(index);
                 }
@@ -295,7 +282,7 @@
                 video.playsInline = true;
                 video.controls = false;
                 video.muted = !isAudioEnabled;
-                video.loop = false; // Changed to false to stop at end
+                video.loop = false; // No looping
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
 
@@ -318,7 +305,7 @@
                 video.addEventListener('canplay', () => {
                     loader.style.display = 'none';
                     if (!isPreload) {
-                        video.play().catch(() => {}); // Silent fail, no error message unless needed
+                        video.play().catch(() => {}); // Silent fail
                         updateMetadata(reel);
                     }
                 });
@@ -349,7 +336,7 @@
                 });
 
                 div.appendChild(video);
-                loadedVideos.set(index, div); // Cache the loaded video
+                loadedVideos.set(index, div); // Cache video
                 return div;
             }
 
@@ -366,7 +353,7 @@
 
             async function loadCurrentReel() {
                 container.innerHTML = '';
-                if (currentIndex === -1) {
+                if                if (currentIndex === -1) {
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">All reels viewed. Refresh to start over.</div>';
                     return;
                 }
@@ -498,6 +485,10 @@
             }
 
             loadCurrentReel().then(() => enableScrollPlayback());
+        })
+        .catch(error => {
+            console.error('Error loading data:', error);
+            container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
         });
     </script>
 </body>
