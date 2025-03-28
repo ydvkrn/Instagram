@@ -171,8 +171,8 @@
         let isTransitioning = false;
         let currentVideo = null;
         let holdTimer = null;
-        let likes = new Map(); // Map to store like counts for each reel
-        let lastTap = 0; // For double-tap detection
+        let likes = new Map();
+        let lastTap = 0;
 
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
@@ -195,8 +195,12 @@
 
         async function checkUrlValidity(url) {
             try {
-                const response = await fetch(url, { method: 'HEAD' });
-                return response.ok;
+                const response = await fetch(url, { 
+                    method: 'HEAD', 
+                    mode: 'no-cors' // Use no-cors to avoid CORS issues during validation
+                });
+                // Since no-cors returns opaque responses, we assume success unless fetch fails
+                return true;
             } catch (error) {
                 console.log(`URL invalid or inaccessible: ${url}`, error);
                 return false;
@@ -224,7 +228,6 @@
                     return { profiles, success: false };
                 }
 
-                // Filter out invalid URLs
                 allReels = [];
                 for (const reel of reels) {
                     const isValid = await checkUrlValidity(reel.media);
@@ -242,7 +245,6 @@
 
                 console.log('Valid Reels Loaded:', allReels);
 
-                // Initialize likes for each reel
                 allReels.forEach(reel => {
                     if (!likes.has(reel.reelId)) {
                         likes.set(reel.reelId, { count: 0, liked: false });
@@ -286,9 +288,10 @@
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
                 video.src = reel.media;
-                video.preload = 'auto'; // Preload video
-                video.setAttribute('playsinline', ''); // Mobile compatibility
-                video.setAttribute('webkit-playsinline', ''); // iOS compatibility
+                video.preload = 'auto';
+                video.setAttribute('playsinline', '');
+                video.setAttribute('webkit-playsinline', '');
+                video.type = 'video/mp4'; // Explicitly set MIME type for MP4
 
                 const progressBar = document.createElement('div');
                 progressBar.className = 'progress-bar';
@@ -310,13 +313,13 @@
 
                 video.addEventListener('ended', () => {
                     console.log(`Video ended: ${reel.media}`);
-                    video.currentTime = 0; // Reset to start
+                    video.currentTime = 0;
                     video.play().catch((error) => console.log(`Loop play error for ${reel.media}:`, error));
                 });
 
                 video.addEventListener('error', (e) => {
-                    console.error(`Unexpected error for ${reel.media}:`, e);
-                    nextReel(); // Skip if unexpected failure
+                    console.error(`Error loading video ${reel.media}:`, e.message);
+                    nextReel(); // Skip to next reel on error
                 });
 
                 video.addEventListener('touchstart', (e) => {
@@ -348,7 +351,7 @@
                 likeImg.style.left = `${x}px`;
                 likeImg.style.top = `${y}px`;
                 container.appendChild(likeImg);
-                setTimeout(() => likeImg.remove(), 500); // Remove after 0.5s animation
+                setTimeout(() => likeImg.remove(), 500);
             }
 
             function loadReel(index) {
@@ -424,7 +427,6 @@
                     }
                     isHolding = false;
 
-                    // Double-tap to like
                     const now = new Date().getTime();
                     const timeSinceLastTap = now - lastTap;
                     if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
