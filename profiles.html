@@ -42,26 +42,11 @@
             transform: scale(1.05);
         }
 
-        .name {
-            font-size: 28px;
-            font-weight: 700;
-            margin: 0;
-            color: #222;
-        }
-
         .username {
             font-size: 16px;
             color: #777;
             margin: 5px 0;
             font-weight: 500;
-        }
-
-        .bio {
-            font-size: 15px;
-            line-height: 1.5;
-            margin: 15px auto;
-            color: #444;
-            max-width: 600px;
         }
 
         .stats {
@@ -118,30 +103,13 @@
             background: #000;
         }
 
-        .item-overlay {
+        .item-logo {
             position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .item:hover .item-overlay {
-            opacity: 1;
-        }
-
-        .item-overlay span {
-            color: #fff;
-            font-size: 16px;
-            font-weight: 600;
-            text-transform: uppercase;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            z-index: 10;
         }
 
         .error {
@@ -157,11 +125,9 @@
     <div class="container">
         <div class="header">
             <img class="profile-pic" id="profile-pic" src="">
-            <h1 class="name" id="name">Loading...</h1>
             <div class="username" id="username">@loading</div>
-            <div class="bio" id="bio">Loading bio...</div>
             <div class="stats">
-                <span><strong id="content-count">0</strong> Content</span>
+                <span><strong id="content-count">0</strong> Posts</span>
             </div>
         </div>
         <div class="content">
@@ -174,9 +140,7 @@
         const profileId = urlParams.get('id');
 
         const profilePic = document.getElementById('profile-pic');
-        const name = document.getElementById('name');
         const username = document.getElementById('username');
-        const bio = document.getElementById('bio');
         const contentCount = document.getElementById('content-count');
         const contentGrid = document.getElementById('content-grid');
 
@@ -202,17 +166,13 @@
 
                 const profile = profiles.find(p => p.id === profileId) || { 
                     username: "Unknown", 
-                    name: "Unknown User", 
                     profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg", 
-                    bio: "No bio available.", 
                     posts: [], 
                     verified: false 
                 };
 
                 profilePic.src = profile.profile;
-                name.textContent = profile.name || profile.username;
                 username.textContent = `@${profile.username}`;
-                bio.textContent = profile.bio || "No bio available.";
 
                 const userReels = reels.filter(reel => reel.id === profileId);
                 const userPosts = profile.posts || [];
@@ -227,15 +187,17 @@
                         const item = document.createElement('div');
                         item.className = 'item';
 
+                        // Add the logo to each item
+                        const logo = document.createElement('img');
+                        logo.className = 'item-logo';
+                        logo.src = 'https://i.postimg.cc/X77btM3F/20250328-151255.png';
+                        item.appendChild(logo);
+
                         if (content.type === 'post') {
                             const img = document.createElement('img');
                             img.src = content.url;
                             img.onerror = () => img.src = 'https://via.placeholder.com/300x400?text=Post+Not+Found';
                             item.appendChild(img);
-                            const overlay = document.createElement('div');
-                            overlay.className = 'item-overlay';
-                            overlay.innerHTML = '<span>Post</span>';
-                            item.appendChild(overlay);
                         } else if (content.type === 'reel') {
                             const canvas = document.createElement('canvas');
                             canvas.width = 300;
@@ -262,11 +224,6 @@
                                 context.textAlign = 'center';
                                 context.fillText('Reel Not Found', canvas.width / 2, canvas.height / 2);
                             };
-
-                            const overlay = document.createElement('div');
-                            overlay.className = 'item-overlay';
-                            overlay.innerHTML = '<span>Reel</span>';
-                            item.appendChild(overlay);
 
                             item.addEventListener('click', () => {
                                 window.open(`player.html?reelId=${content.reelId}`, '_blank');
