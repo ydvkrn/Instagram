@@ -110,8 +110,14 @@
             background: rgba(255, 255, 255, 0.8);
             width: 0;
             z-index: 11;
-            cursor: pointer; /* प्रोग्रेस बार पर क्लिक करने योग्य बनाना */
-            pointer-events: auto; /* इंटरैक्शन सक्षम करना */
+            cursor: pointer;
+            pointer-events: auto;
+            transition: height 0.2s; /* Smooth transition for height change */
+        }
+
+        .progress-bar.highlighted {
+            height: 8px; /* Increase height when highlighted */
+            background: rgba(255, 255, 255, 1); /* Full opacity when highlighted */
         }
 
         body {
@@ -175,6 +181,8 @@
         let holdTimer = null;
         let likes = new Map();
         let lastTap = 0;
+        let isScrubbing = false;
+        let touchStartX = 0;
 
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
@@ -265,11 +273,10 @@
             const { profiles, success } = await loadData();
             if (!success) return;
 
-            // URL से ReelId के आधार पर सही इंडेक्स सेट करें
             currentIndex = initialReelId ? 
                 allReels.findIndex(reel => reel.reelId === initialReelId) : 
                 0;
-            if (currentIndex === -1) currentIndex = 0; // अगर ReelId नहीं मिला तो पहला रील
+            if (currentIndex === -1) currentIndex = 0;
 
             function getProfileById(id) {
                 return profiles.find(profile => profile.id === id) || { 
@@ -307,7 +314,7 @@
                 });
 
                 video.addEventListener('timeupdate', () => {
-                    if (!video.paused) {
+                    if (!video.paused && !isScrubbing) {
                         const progress = (video.currentTime / video.duration) * 100;
                         progressBar.style.width = `${progress}%`;
                     }
@@ -331,7 +338,6 @@
                     }
                 });
 
-                // प्रोग्रेस बार पर क्लिक/टच से स्किप करने की सुविधा
                 progressBar.addEventListener('click', (e) => {
                     if (currentVideo) {
                         const rect = progressBar.getBoundingClientRect();
@@ -342,7 +348,6 @@
                     }
                 });
 
-                // टच डिवाइस के लिए
                 progressBar.addEventListener('touchstart', (e) => {
                     e.preventDefault();
                     const touch = e.touches[0];
@@ -427,16 +432,34 @@
 
                 container.addEventListener('touchstart', (e) => {
                     touchStartY = e.touches[0].clientY;
+                    touchStartX = e.touches[0].clientX;
                     touchMoveY = touchStartY;
                     isHolding = true;
                     clearTimeout(holdTimer);
                     holdTimer = setTimeout(() => {
-                        if (isHolding && currentVideo) currentVideo.pause();
+                        if (isHolding && currentVideo) {
+                            currentVideo.pause();
+                            isScrubbing = true;
+                            const progressBar = document.querySelector('.progress-bar');
+                            if (progressBar) progressBar.classList.add('highlighted');
+                        }
                     }, 500);
                 });
 
                 container.addEventListener('touchmove', (e) => {
                     touchMoveY = e.touches[0].clientY;
+                    if (isScrubbing && currentVideo) {
+                        const touchX = e.touches[0].clientX;
+                        const deltaX = touchX - touchStartX;
+                        const screenWidth = window.innerWidth;
+                        const progressChange = deltaX / screenWidth;
+                        const newTime = Math.max(0, Math.min(currentVideo.duration, 
+                            currentVideo.currentTime + (progressChange * currentVideo.duration)));
+                        currentVideo.currentTime = newTime;
+                        const progress = (newTime / currentVideo.duration) * 100;
+                        const progressBar = document.querySelector('.progress-bar');
+                        if (progressBar) progressBar.style.width = `${progress}%`;
+                    }
                 });
 
                 container.addEventListener('touchend', (e) => {
@@ -445,6 +468,9 @@
                     const swipeDistance = touchStartY - touchEndY;
 
                     clearTimeout(holdTimer);
+                    const progressBar = document.querySelector('.progress-bar');
+                    if (progressBar) progressBar.classList.remove('highlighted');
+
                     if (isHolding && Math.abs(swipeDistance) < 50 && currentVideo) {
                         currentVideo.play().catch(() => {});
                     } else if (swipeDistance > 50) {
@@ -457,6 +483,7 @@
                         setTimeout(() => { isTransitioning = false; }, 100);
                     }
                     isHolding = false;
+                    isScrubbing = false;
 
                     const now = new Date().getTime();
                     const timeSinceLastTap = now - lastTap;
@@ -473,12 +500,12 @@
 
                 profilePic.addEventListener('click', () => {
                     const profileId = profilePic.dataset.id;
-                    window.open(`profiles.html?id=${profileId}`, '_blank');
+                    window.open(`/profiles.html?id=${profileId}`, '_blank');
                 });
 
                 usernameContainer.addEventListener('click', () => {
                     const profileId = usernameContainer.dataset.id;
-                    window.open(`profiles.html?id=${profileId}`, '_blank');
+                    window.open(`/profiles.html?id=${profileId}`, '_blank');
                 });
             }
 
