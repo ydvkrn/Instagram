@@ -38,6 +38,7 @@
             object-fit: cover;
             display: block;
             background-color: #000;
+            pointer-events: none; /* Prevents direct video interaction */
         }
 
         .video-loader {
@@ -68,6 +69,7 @@
             align-items: center;
             padding: 10px;
             background: transparent;
+            pointer-events: none; /* Prevents interaction */
         }
 
         .profile-pic {
@@ -109,6 +111,7 @@
             border-radius: 8px;
             white-space: normal;
             cursor: pointer;
+            pointer-events: none; /* Prevents interaction */
         }
 
         .like-animation {
@@ -117,7 +120,7 @@
             height: 150px;
             opacity: 0;
             transform: scale(0.5);
-            animation: likePop 0.8s ease-out forwards;
+            animation: likePop 0.4s ease-out forwards; /* Reduced time */
             z-index: 12;
         }
 
@@ -138,26 +141,14 @@
             cursor: pointer;
         }
 
-        .play-trigger {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 60px;
-            height: 60px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
-            color: white;
-            cursor: pointer;
-            z-index: 13;
+        /* Disable context menu and drag */
+        body {
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
         }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;"> <!-- Disable right-click -->
     <div id="reels-container"></div>
     
     <div class="fixed-overlay">
@@ -171,7 +162,6 @@
     </div>
     
     <div class="title" id="title" onclick="showFullTitle()">Loading...</div>
-    <div class="play-trigger" id="play-trigger">▶</div>
 
     <script>
         let fullTitle = "";
@@ -182,7 +172,7 @@
         let touchStartY = 0;
         let isTransitioning = false;
         let currentVideo = null;
-        let isFirstVideo = true; // Track first video
+        let isFirstVideo = true;
 
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
@@ -192,7 +182,6 @@
         const usernameText = document.getElementById('username-text');
         const verifyBadge = document.getElementById('verify-badge');
         const title = document.getElementById('title');
-        const playTrigger = document.getElementById('play-trigger');
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
@@ -224,7 +213,6 @@
 
                 if (allReels.length === 0) {
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No reels available.</div>';
-                    playTrigger.style.display = 'none';
                     return { profiles, success: false };
                 }
 
@@ -233,7 +221,6 @@
             } catch (error) {
                 console.error('Error loading data:', error);
                 container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
-                playTrigger.style.display = 'none';
                 return { profiles: [], success: false };
             }
         }
@@ -283,8 +270,6 @@
                     updateMetadata(reel);
                     if (!isFirstVideo) {
                         video.play().catch(() => {});
-                    } else {
-                        playTrigger.style.display = 'block'; // Only for first video
                     }
                 });
 
@@ -298,23 +283,6 @@
                 video.addEventListener('error', () => {
                     loader.style.display = 'none';
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Video failed to load.</div>';
-                });
-
-                video.addEventListener('click', () => {
-                    if (!isAudioEnabled) {
-                        isAudioEnabled = true;
-                        setAudioPersistence();
-                        video.muted = false;
-                        video.play().catch(() => {});
-                        if (isFirstVideo) {
-                            playTrigger.style.display = 'none';
-                            isFirstVideo = false;
-                        }
-                    }
-                });
-
-                video.addEventListener('dblclick', (e) => {
-                    showLikeAnimation(div, e);
                 });
 
                 progressBar.addEventListener('mousedown', (e) => {
@@ -358,7 +326,6 @@
 
                 if (currentIndex >= allReels.length) {
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">All reels viewed.</div>';
-                    playTrigger.style.display = 'none';
                     return;
                 }
 
@@ -371,10 +338,13 @@
             function enableScrollPlayback() {
                 let touchStartY = 0;
                 let touchMoveY = 0;
+                let isHolding = false;
 
                 container.addEventListener('touchstart', (e) => {
                     touchStartY = e.touches[0].clientY;
                     touchMoveY = touchStartY;
+                    isHolding = true;
+                    if (currentVideo) currentVideo.pause();
                 });
 
                 container.addEventListener('touchmove', (e) => {
@@ -386,7 +356,9 @@
                     const touchEndY = e.changedTouches[0].clientY;
                     const swipeDistance = touchStartY - touchEndY;
 
-                    if (swipeDistance > 50 && currentIndex < allReels.length - 1) { // Swipe up
+                    if (isHolding && Math.abs(swipeDistance) < 50) {
+                        if (currentVideo) currentVideo.play().catch(() => {});
+                    } else if (swipeDistance > 50 && currentIndex < allReels.length - 1) { // Swipe up
                         isTransitioning = true;
                         currentIndex++;
                         loadCurrentReel().then(() => {
@@ -399,6 +371,39 @@
                             isTransitioning = false;
                         });
                     }
+                    isHolding = false;
+                });
+
+                container.addEventListener('mousedown', (e) => {
+                    if (e.button === 0) { // Left click
+                        isHolding = true;
+                        if (currentVideo) currentVideo.pause();
+                    }
+                });
+
+                container.addEventListener('mouseup', (e) => {
+                    if (isHolding && e.button === 0) {
+                        if (currentVideo) currentVideo.play().catch(() => {});
+                        isHolding = false;
+                    }
+                });
+
+                container.addEventListener('click', (e) => {
+                    if (isFirstVideo) {
+                        if (currentVideo) {
+                            currentVideo.play().catch(() => {});
+                            isFirstVideo = false;
+                            if (!isAudioEnabled) {
+                                isAudioEnabled = true;
+                                setAudioPersistence();
+                                currentVideo.muted = false;
+                            }
+                        }
+                    }
+                });
+
+                container.addEventListener('dblclick', (e) => {
+                    showLikeAnimation(container, e);
                 });
 
                 container.addEventListener('wheel', (e) => {
@@ -432,16 +437,8 @@
                 heart.style.left = `${event.clientX - 75}px`;
                 heart.style.top = `${event.clientY - 75}px`;
                 container.appendChild(heart);
-                setTimeout(() => container.removeChild(heart), 800);
+                setTimeout(() => container.removeChild(heart), 400); // Match animation time
             }
-
-            playTrigger.addEventListener('click', () => {
-                if (currentVideo && isFirstVideo) {
-                    currentVideo.play().catch(() => {});
-                    playTrigger.style.display = 'none';
-                    isFirstVideo = false;
-                }
-            });
 
             loadCurrentReel().then(() => enableScrollPlayback());
         }
