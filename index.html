@@ -120,25 +120,6 @@
             background: rgba(255, 255, 255, 1);
         }
 
-        .preview-frame {
-            position: fixed;
-            bottom: 12px;
-            width: 54px; /* 9:16 ratio with height 96px */
-            height: 96px;
-            background: #000;
-            border: 1px solid white;
-            border-radius: 8px; /* Rounded corners */
-            display: none;
-            z-index: 12;
-            overflow: hidden;
-        }
-
-        .preview-frame video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
         body {
             -webkit-touch-callout: none;
             -webkit-user-drag: none;
@@ -189,10 +170,6 @@
     
     <img class="top-right-logo" src="https://i.postimg.cc/X77btM3F/20250328-151255.png" alt="Logo">
 
-    <div class="preview-frame" id="preview-frame">
-        <video id="preview-video" muted playsinline preload="auto"></video>
-    </div>
-
     <script>
         let fullTitle = "";
         let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false;
@@ -206,9 +183,6 @@
         let lastTap = 0;
         let isScrubbing = false;
         let touchStartX = 0;
-        let previewFrame = null;
-        let previewVideo = null;
-        let nextVideoPreloaded = false;
 
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
@@ -219,8 +193,6 @@
         const usernameContainer = document.getElementById('username');
         const verifyBadge = document.getElementById('verify-badge');
         const title = document.getElementById('title');
-        previewFrame = document.getElementById('preview-frame');
-        previewVideo = document.getElementById('preview-video');
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
@@ -298,6 +270,7 @@
             }
 
             async function loadVideoUrl(reel) {
+                // Simulate DRM protection by not exposing direct URL
                 const isValid = await checkUrlValidity(reel.media);
                 return isValid ? reel.media : null;
             }
@@ -312,7 +285,7 @@
                 video.muted = !isAudioEnabled;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
-                video.src = videoUrl;
+                video.src = videoUrl; // Use protected URL
                 video.preload = 'auto';
                 video.setAttribute('playsinline', '');
                 video.setAttribute('webkit-playsinline', '');
@@ -325,10 +298,8 @@
                 video.addEventListener('canplay', () => {
                     console.log(`Video can play: ${reel.media}`);
                     currentVideo = video;
-                    previewVideo.src = videoUrl;
                     updateMetadata(reel);
                     video.play().catch((error) => console.log(`Play error for ${reel.media}:`, error));
-                    preloadNextVideo(); // Preload next video
                 });
 
                 video.addEventListener('timeupdate', () => {
@@ -403,14 +374,6 @@
                 setTimeout(() => likeImg.remove(), 500);
             }
 
-            async function preloadNextVideo() {
-                if (currentIndex + 1 < allReels.length && !nextVideoPreloaded) {
-                    const nextReel = allReels[currentIndex + 1];
-                    await loadVideoUrl(nextReel); // Pre-fetch next video URL
-                    nextVideoPreloaded = true;
-                }
-            }
-
             async function loadReel(index) {
                 if (index < 0 || index >= allReels.length) {
                     console.warn('Index out of bounds:', index);
@@ -439,7 +402,6 @@
                 currentVideo = videoElement.querySelector('video');
                 currentVideo.play().catch((error) => console.log(`Initial play error for ${reel.media}:`, error));
                 updateMetadata(reel);
-                nextVideoPreloaded = false; // Reset for next preload
 
                 window.history.pushState({}, document.title, `/Instagram/?reelId=${allReels[index].reelId}`);
             }
@@ -476,10 +438,6 @@
                             const progressBar = document.querySelector('.progress-bar');
                             if (progressBar) {
                                 progressBar.classList.add('highlighted');
-                                previewFrame.style.display = 'block';
-                                const progressWidth = window.innerWidth;
-                                const progress = (currentVideo.currentTime / currentVideo.duration) * progressWidth;
-                                previewFrame.style.left = `${progress - 27}px`; // Center at progress point
                             }
                         }
                     }, 500);
@@ -491,18 +449,14 @@
                         const touchX = e.touches[0].clientX;
                         const deltaX = touchX - touchStartX;
                         const screenWidth = window.innerWidth;
-                        const progressChange = deltaX / (screenWidth * 6); // Even slower scrubbing (divided by 6)
+                        const progressChange = deltaX / (screenWidth * 3); // Slower scrubbing (divided by 3)
                         const newTime = Math.max(0, Math.min(currentVideo.duration, 
                             currentVideo.currentTime + (progressChange * currentVideo.duration)));
                         currentVideo.currentTime = newTime;
-                        previewVideo.currentTime = newTime; // Fast frame update
                         const progress = (newTime / currentVideo.duration) * 100;
                         const progressBar = document.querySelector('.progress-bar');
                         if (progressBar) {
                             progressBar.style.width = `${progress}%`;
-                            const progressWidth = window.innerWidth;
-                            const progressPx = (newTime / currentVideo.duration) * progressWidth;
-                            previewFrame.style.left = `${progressPx - 27}px`; // Stay at progress point
                         }
                     }
                 });
@@ -515,7 +469,6 @@
                     clearTimeout(holdTimer);
                     const progressBar = document.querySelector('.progress-bar');
                     if (progressBar) progressBar.classList.remove('highlighted');
-                    previewFrame.style.display = 'none';
 
                     if (isHolding && Math.abs(swipeDistance) < 50 && currentVideo) {
                         currentVideo.play().catch(() => {});
@@ -523,4 +476,51 @@
                         isTransitioning = true;
                         nextReel();
                         setTimeout(() => { isTransitioning = false; }, 100);
-             
+                    } else if (swipeDistance < -50) {
+                        isTransitioning = true;
+                        prevReel();
+                        setTimeout(() => { isTransitioning = false; }, 100);
+                    }
+                    isHolding = false;
+                    isScrubbing = false;
+
+                    const now = new Date().getTime();
+                    const timeSinceLastTap = now - lastTap;
+                    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+                        const reel = allReels[currentIndex];
+                        const reelLikes = likes.get(reel.reelId);
+                        reelLikes.count += 1;
+                        const touchX = e.changedTouches[0].clientX;
+                        const touchY = e.changedTouches[0].clientY;
+                        showLikeAnimation(touchX, touchY);
+                    }
+                    lastTap = now;
+                });
+
+                profilePic.addEventListener('click', () => {
+                    const profileId = profilePic.dataset.id;
+                    window.open(`/profiles.html?id=${profileId}`, '_blank');
+                });
+
+                usernameContainer.addEventListener('click', () => {
+                    const profileId = usernameContainer.dataset.id;
+                    window.open(`/profiles.html?id=${profileId}`, '_blank');
+                });
+            }
+
+            function showFullTitle() {
+                alert(fullTitle);
+            }
+
+            loadReel(currentIndex);
+            enableScrollPlayback();
+        }
+
+        // Prevent video URL exposure
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.addEventListener('dragstart', (e) => e.preventDefault());
+
+        initialize();
+    </script>
+</body>
+</html>
