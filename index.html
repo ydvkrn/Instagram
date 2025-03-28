@@ -340,15 +340,13 @@
 
                         if (!video) return;
 
-                        const index = parseInt(video.dataset.index);
-
                         if (entry.isIntersecting) {
                             document.querySelectorAll('video').forEach(v => {
                                 if (v !== video) v.pause();
                             });
 
                             video.muted = !isAudioEnabled;
-                            const reel = allReels[index];
+                            const reel = allReels[currentIndex];
                             if (reel) {
                                 updateMetadata(reel);
                                 window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
