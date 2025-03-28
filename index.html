@@ -299,8 +299,10 @@
                     video.play().catch(() => {});
                 });
 
+                // Like wala event video container par
                 div.addEventListener('dblclick', (e) => {
-                    showLikeAnimation(div, e); // Like animation
+                    console.log("Double click triggered"); // Debug log
+                    showLikeAnimation(div, e);
                 });
 
                 div.appendChild(video);
@@ -434,13 +436,16 @@
             }
 
             function showLikeAnimation(container, event) {
+                console.log("Showing like animation"); // Debug log
                 const heart = document.createElement('img');
                 heart.src = "https://png.pngtree.com/png-vector/20220428/ourmid/pngtree-smooth-glossy-heart-vector-file-ai-and-png-png-image_4557871.png";
                 heart.className = 'like-animation';
                 heart.style.left = `${event.clientX - 75}px`;
                 heart.style.top = `${event.clientY - 75}px`;
                 container.appendChild(heart);
-                setTimeout(() => container.removeChild(heart), 400);
+                setTimeout(() => {
+                    if (heart.parentNode) container.removeChild(heart);
+                }, 400);
             }
 
             loadCurrentReel();
