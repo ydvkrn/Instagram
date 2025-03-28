@@ -244,16 +244,18 @@
 
                 video.addEventListener('progress', () => {
                     const buffered = video.buffered;
-                    if (buffered.length > 0) {
+                    if (buffered.length > 0 && video.duration) {
                         const bufferedEnd = buffered.end(0);
-                        const duration = video.duration || 0;
-                        const bufferedPercent = duration ? (bufferedEnd / duration) * 100 : 0;
+                        const duration = video.duration;
+                        const bufferedPercent = (bufferedEnd / duration) * 100;
 
                         if (bufferedPercent >= 30 && !hasStartedPlaying) {
                             loader.style.display = 'none';
                             video.play().catch(error => console.log("Play error:", error));
                             hasStartedPlaying = true;
-                            updateMetadata(reel);
+                            if (parseInt(video.dataset.index) === currentIndex) {
+                                updateMetadata(reel);
+                            }
                         }
                     }
                 });
@@ -292,22 +294,20 @@
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
             }
 
-            async function loadCurrentReel() {
+            async function loadReels() {
                 container.innerHTML = ''; // Clear previous content
-                const reel = allReels[currentIndex];
-                const videoElement = await createVideoElement(reel, currentIndex);
-                container.appendChild(videoElement);
 
-                // Placeholders for previous and next reels
-                if (currentIndex > 0) {
-                    const prevPlaceholder = document.createElement('div');
-                    prevPlaceholder.className = 'video-container';
-                    container.insertBefore(prevPlaceholder, videoElement);
+                // Saare reels ke liye video elements banao
+                for (let i = 0; i < allReels.length; i++) {
+                    const reel = allReels[i];
+                    const videoElement = await createVideoElement(reel, i);
+                    container.appendChild(videoElement);
                 }
-                if (currentIndex + 1 < allReels.length) {
-                    const nextPlaceholder = document.createElement('div');
-                    nextPlaceholder.className = 'video-container';
-                    container.appendChild(nextPlaceholder);
+
+                // Current reel par scroll karo
+                const currentContainer = container.children[currentIndex];
+                if (currentContainer) {
+                    currentContainer.scrollIntoView({ behavior: 'smooth' });
                 }
             }
 
@@ -318,7 +318,7 @@
                         const video = entry.target.querySelector('video');
                         const loader = entry.target.querySelector('.video-loader');
 
-                        if (!video) return; // Placeholder ke liye skip
+                        if (!video) return;
 
                         const index = parseInt(video.dataset.index);
 
@@ -337,10 +337,7 @@
                                 window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
                             }
 
-                            if (index !== currentIndex) {
-                                currentIndex = index;
-                                loadCurrentReel().then(() => enableScrollPlayback());
-                            }
+                            currentIndex = index; // Update current index
                         } else if (video !== currentVideo) {
                             video.pause();
                             if (loader) loader.style.display = 'none';
@@ -372,7 +369,7 @@
             }
 
             // Initial load
-            loadCurrentReel().then(() => enableScrollPlayback());
+            loadReels().then(() => enableScrollPlayback());
         })
         .catch(error => {
             console.error('Error loading data:', error);
