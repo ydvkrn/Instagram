@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .profile-pic {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid white;
+            margin-bottom: 10px;
+        }
+
+        .name {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .username {
+            font-size: 16px;
+            opacity: 0.7;
+            margin: 5px 0;
+        }
+
+        .bio {
+            font-size: 14px;
+            margin: 10px 0;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .reels-catalog {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            padding: 20px;
+        }
+
+        .reel-item {
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+
+        .reel-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .reel-item:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img class="profile-pic" id="profile-pic" src="">
+        <div class="name" id="name">Loading...</div>
+        <div class="username" id="username">@loading</div>
+        <div class="bio" id="bio">Loading bio...</div>
+    </div>
+    <div class="reels-catalog" id="reels-catalog"></div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const profileId = urlParams.get('id');
+
+        const profilePic = document.getElementById('profile-pic');
+        const name = document.getElementById('name');
+        const username = document.getElementById('username');
+        const bio = document.getElementById('bio');
+        const reelsCatalog = document.getElementById('reels-catalog');
+
+        async function loadProfileData() {
+            try {
+                const [profilesResponse, reelsResponse] = await Promise.all([
+                    fetch('profiles.json').then(res => res.ok ? res.json() : ({ profiles: [] })),
+                    fetch('reels.json').then(res => res.ok ? res.json() : ({ reels: [] }))
+                ]);
+
+                const profiles = profilesResponse.profiles || [];
+                const reels = reelsResponse.reels || [];
+
+                const profile = profiles.find(p => p.id === profileId) || { 
+                    username: "Unknown", 
+                    name: "Unknown User", 
+                    profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg", 
+                    bio: "No bio available.", 
+                    verified: false 
+                };
+
+                profilePic.src = profile.profile;
+                name.textContent = profile.name || profile.username;
+                username.textContent = `@${profile.username}`;
+                bio.textContent = profile.bio || "No bio available.";
+
+                const userReels = reels.filter(reel => reel.id === profileId);
+                userReels.forEach(reel => {
+                    const reelItem = document.createElement('div');
+                    reelItem.className = 'reel-item';
+                    const thumbnail = document.createElement('img');
+                    thumbnail.src = reel.thumbnail || reel.media; // Use thumbnail if available, else media
+                    reelItem.appendChild(thumbnail);
+                    reelItem.addEventListener('click', () => {
+                        window.open(`player.html?reelId=${reel.reelId}`, '_blank');
+                    });
+                    reelsCatalog.appendChild(reelItem);
+                });
+
+                if (userReels.length === 0) {
+                    reelsCatalog.innerHTML = '<p style="text-align: center;">No reels available.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading profile data:', error);
+                reelsCatalog.innerHTML = '<p style="text-align: center;">Failed to load profile.</p>';
+            }
+        }
+
+        loadProfileData();
+    </script>
+</body>
+</html>
