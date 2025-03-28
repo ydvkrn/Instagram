@@ -22,7 +22,7 @@
 
         .header {
             text-align: center;
-            padding: 30px 0; /* Reduced padding for better spacing */
+            padding: 30px 0;
             background: #fff;
             border-radius: 0 0 20px 20px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -36,17 +36,24 @@
         }
 
         .profile-pic {
-            width: 120px; /* Slightly smaller for better proportion */
+            width: 120px;
             height: 120px;
             border-radius: 50%;
-            border: 4px solid #fff; /* Slightly thinner border */
+            border: 4px solid #fff;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s;
-            object-fit: cover; /* Ensures the image fits well */
+            object-fit: cover;
         }
 
         .profile-pic:hover {
             transform: scale(1.05);
+        }
+
+        .username-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px; /* Space between username and badge */
         }
 
         .username {
@@ -54,6 +61,12 @@
             color: #777;
             margin: 5px 0;
             font-weight: 500;
+        }
+
+        .verified-badge {
+            width: 16px; /* Small size for the badge */
+            height: 16px;
+            vertical-align: middle;
         }
 
         .stats {
@@ -126,7 +139,10 @@
             <div class="profile-pic-container">
                 <img class="profile-pic" id="profile-pic" src="">
             </div>
-            <div class="username" id="username">@loading</div>
+            <div class="username-container">
+                <div class="username" id="username">@loading</div>
+                <img class="verified-badge" id="verified-badge" src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Twitter_Verified_Badge_Gold.svg/2048px-Twitter_Verified_Badge_Gold.svg.png" style="display: none;">
+            </div>
             <div class="stats">
                 <span><strong id="content-count">0</strong> Posts</span>
             </div>
@@ -142,6 +158,7 @@
 
         const profilePic = document.getElementById('profile-pic');
         const username = document.getElementById('username');
+        const verifiedBadge = document.getElementById('verified-badge');
         const contentCount = document.getElementById('content-count');
         const contentGrid = document.getElementById('content-grid');
 
@@ -174,6 +191,11 @@
 
                 profilePic.src = profile.profile;
                 username.textContent = `@${profile.username}`;
+
+                // Show verification badge if the user is verified
+                if (profile.verified === true) {
+                    verifiedBadge.style.display = 'inline';
+                }
 
                 const userReels = reels.filter(reel => reel.id === profileId);
                 const userPosts = profile.posts || [];
