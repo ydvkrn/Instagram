@@ -166,8 +166,8 @@
 
     <script>
         let fullTitle = "";
-        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true';
-        const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000;
+        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false; // Default false if not set
+        const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000; // 30 minutes
         let allReels = [];
         let currentIndex = 0;
         let touchStartY = 0;
@@ -189,6 +189,8 @@
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
             localStorage.setItem('audioTimestamp', Date.now());
+            isAudioEnabled = true; // Permanently set to true
+            if (currentVideo) currentVideo.muted = false; // Unmute current video
         }
 
         function shouldKeepAudioEnabled() {
@@ -252,7 +254,7 @@
                 const video = document.createElement('video');
                 video.playsInline = true;
                 video.controls = false;
-                video.muted = !isAudioEnabled;
+                video.muted = !isAudioEnabled; // Initial state based on preference
                 video.loop = true;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
@@ -286,6 +288,14 @@
                 video.addEventListener('error', () => {
                     loader.style.display = 'none';
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Video failed to load.</div>';
+                });
+
+                // Touch event to permanently unmute on first video
+                video.addEventListener('touchstart', () => {
+                    if (!isAudioEnabled) {
+                        setAudioPersistence(); // Permanently unmute and save to LocalStorage
+                        video.play().catch(error => console.log("Play error:", error));
+                    }
                 });
 
                 progressBar.addEventListener('mousedown', (e) => {
@@ -406,11 +416,6 @@
                         currentVideo.play().catch(() => {});
                         isFirstVideo = false;
                         localStorage.setItem('firstVideoPlayed', 'true'); // Persist
-                        if (!isAudioEnabled) {
-                            isAudioEnabled = true;
-                            setAudioPersistence();
-                            currentVideo.muted = false;
-                        }
                     }
                 });
 
