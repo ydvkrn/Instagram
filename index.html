@@ -180,7 +180,7 @@
                     await cache.put(url, response.clone());
                     return url;
                 }
-                return url; // Fail hone par bhi URL return karo
+                return url;
             } catch (error) {
                 console.error(`Cache fetch failed for ${url}:`, error);
                 return url;
@@ -209,7 +209,7 @@
             // Initial reel set karna
             if (initialReelId) {
                 currentIndex = allReels.findIndex(reel => reel.reelId === initialReelId);
-                if (currentIndex === -1) currentIndex = 0; // Agar reelId nahi mila to pehla reel
+                if (currentIndex === -1) currentIndex = 0;
             }
 
             function getProfileById(id) {
@@ -245,13 +245,6 @@
 
                 video.addEventListener('loadedmetadata', () => {
                     loader.style.display = 'none';
-                    if (parseInt(video.dataset.index) === currentIndex) {
-                        video.play().catch(error => {
-                            console.log("Initial play error:", error);
-                            loader.style.display = 'none'; // Stuck na ho
-                        });
-                        updateMetadata(reel);
-                    }
                 });
 
                 video.addEventListener('waiting', () => {
@@ -265,7 +258,7 @@
                 video.addEventListener('error', () => {
                     loader.style.display = 'block';
                     loader.innerHTML = 'Load failed';
-                    setTimeout(() => loader.style.display = 'none', 2000); // 2 sec baad hide
+                    setTimeout(() => loader.style.display = 'none', 2000);
                 });
 
                 video.addEventListener('click', () => {
@@ -301,12 +294,24 @@
                 const reel = allReels[currentIndex];
                 const videoElement = await createVideoElement(reel, currentIndex);
                 container.appendChild(videoElement);
-                // Next reel ke liye placeholder
+
+                // Next reel ke liye placeholder agar available ho
                 if (currentIndex + 1 < allReels.length) {
                     const placeholder = document.createElement('div');
                     placeholder.className = 'video-container';
                     container.appendChild(placeholder);
                 }
+
+                // Previous reel ke liye placeholder agar available ho
+                if (currentIndex > 0) {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'video-container';
+                    container.insertBefore(placeholder, container.firstChild);
+                }
+
+                const video = videoElement.querySelector('video');
+                video.play().catch(error => console.log("Initial play error:", error));
+                updateMetadata(reel);
             }
 
             function enableScrollPlayback() {
@@ -314,15 +319,18 @@
                 const observer = new IntersectionObserver((entries) => {
                     entries.forEach(entry => {
                         const video = entry.target.querySelector('video');
+                        const loader = entry.target.querySelector('.video-loader');
+
                         if (!video) return; // Placeholder ke liye skip
 
                         const index = parseInt(video.dataset.index);
-                        const loader = entry.target.querySelector('.video-loader');
 
                         if (entry.isIntersecting) {
-                            if (currentVideo && currentVideo !== video) {
-                                currentVideo.pause();
-                            }
+                            // Pause all other videos
+                            document.querySelectorAll('video').forEach(v => {
+                                if (v !== video) v.pause();
+                            });
+
                             currentVideo = video;
                             video.muted = !isAudioEnabled;
 
@@ -330,11 +338,11 @@
                             if (playPromise !== undefined) {
                                 playPromise
                                     .then(() => {
-                                        loader.style.display = 'none';
+                                        if (loader) loader.style.display = 'none';
                                     })
                                     .catch(error => {
                                         console.log("Play error:", error);
-                                        loader.style.display = 'none'; // Stuck na ho
+                                        if (loader) loader.style.display = 'none';
                                     });
                             }
 
@@ -344,10 +352,13 @@
                                 window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
                             }
 
-                            // Next reel load karna agar scroll kiya
-                            if (index === currentIndex && index + 1 < allReels.length) {
-                                currentIndex++;
-                                loadNextReel();
+                            // Scroll direction check karna
+                            if (index > currentIndex && index < allReels.length) {
+                                currentIndex = index;
+                                loadNextReel('down');
+                            } else if (index < currentIndex && index >= 0) {
+                                currentIndex = index;
+                                loadNextReel('up');
                             }
                         } else if (video !== currentVideo) {
                             video.pause();
@@ -360,16 +371,32 @@
                 containers.forEach(container => observer.observe(container));
             }
 
-            async function loadNextReel() {
-                const reel = allReels[currentIndex];
-                const videoElement = await createVideoElement(reel, currentIndex);
-                container.replaceChild(videoElement, container.children[1]); // Placeholder replace karo
-                // Agar aur reels hain to next placeholder add karo
-                if (currentIndex + 1 < allReels.length) {
-                    const placeholder = document.createElement('div');
-                    placeholder.className = 'video-container';
-                    container.appendChild(placeholder);
+            async function loadNextReel(direction) {
+                container.innerHTML = ''; // Clear all previous content
+
+                // Current reel load karo
+                const currentReel = allReels[currentIndex];
+                const currentVideoElement = await createVideoElement(currentReel, currentIndex);
+                container.appendChild(currentVideoElement);
+
+                // Previous reel ka placeholder agar upar scroll kiya
+                if (currentIndex > 0) {
+                    const prevPlaceholder = document.createElement('div');
+                    prevPlaceholder.className = 'video-container';
+                    container.insertBefore(prevPlaceholder, currentVideoElement);
                 }
+
+                // Next reel ka placeholder agar niche scroll kiya
+                if (currentIndex + 1 < allReels.length) {
+                    const nextPlaceholder = document.createElement('div');
+                    nextPlaceholder.className = 'video-container';
+                    container.appendChild(nextPlaceholder);
+                }
+
+                const video = currentVideoElement.querySelector('video');
+                video.play().catch(error => console.log("Next reel play error:", error));
+                updateMetadata(currentReel);
+
                 enableScrollPlayback();
             }
 
