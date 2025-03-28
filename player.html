@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Reel Player</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        #video-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background-color: #000;
+            pointer-events: none;
+        }
+
+        .video-loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 32px;
+            border: 3px solid #fff;
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            z-index: 10;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .fixed-overlay {
+            position: fixed;
+            bottom: 80px;
+            left: 15px;
+            width: calc(100% - 30px);
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: transparent;
+        }
+
+        .profile-pic {
+            width: 45px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .user-info {
+            margin-left: 10px;
+            color: white;
+        }
+
+        .username {
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+
+        .verify-badge {
+            width: 16px;
+            height: 16px;
+            margin-left: 5px;
+        }
+
+        .title {
+            font-size: 14px;
+            opacity: 0.9;
+            position: fixed;
+            bottom: 40px;
+            left: 15px;
+            width: calc(100% - 30px);
+            color: white;
+            padding: 5px 10px;
+            background: transparent;
+            border-radius: 8px;
+            white-space: normal;
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+            cursor: pointer;
+            z-index: 13;
+        }
+
+        body {
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+    <div id="video-container"></div>
+    
+    <div class="fixed-overlay">
+        <img class="profile-pic" id="profile-pic" src="">
+        <div class="user-info">
+            <div class="username" id="username">
+                <span id="username-text">Loading...</span>
+                <img class="verify-badge" id="verify-badge" src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Twitter_Verified_Badge_Gold.svg/2048px-Twitter_Verified_Badge_Gold.svg.png">
+            </div>
+        </div>
+    </div>
+    
+    <div class="title" id="title">Loading...</div>
+    <div class="back-btn" id="back-btn">←</div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const reelId = urlParams.get('reelId');
+
+        const container = document.getElementById('video-container');
+        const profilePic = document.getElementById('profile-pic');
+        const usernameText = document.getElementById('username-text');
+        const verifyBadge = document.getElementById('verify-badge');
+        const title = document.getElementById('title');
+        const backBtn = document.getElementById('back-btn');
+
+        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true';
+
+        async function loadReelData() {
+            try {
+                const [profilesResponse, reelsResponse] = await Promise.all([
+                    fetch('profiles.json').then(res => res.ok ? res.json() : ({ profiles: [] })),
+                    fetch('reels.json').then(res => res.ok ? res.json() : ({ reels: [] }))
+                ]);
+
+                const profiles = profilesResponse.profiles || [];
+                const reels = reelsResponse.reels || [];
+
+                const reel = reels.find(r => r.reelId === reelId);
+                if (!reel) {
+                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Reel not found.</div>';
+                    return;
+                }
+
+                const profile = profiles.find(p => p.id === reel.id) || { 
+                    username: "bot", 
+                    profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg", 
+                    verified: true 
+                };
+
+                profilePic.src = profile.profile;
+                usernameText.textContent = profile.username;
+                verifyBadge.style.display = profile.verified ? "inline" : "none";
+                title.textContent = reel.title;
+
+                const video = document.createElement('video');
+                video.playsInline = true;
+                video.controls = false;
+                video.muted = !isAudioEnabled;
+                video.loop = true;
+                video.src = reel.media;
+
+                const loader = document.createElement('div');
+                loader.className = 'video-loader';
+                loader.style.display = 'block';
+                container.appendChild(loader);
+
+                video.addEventListener('canplay', () => {
+                    loader.style.display = 'none';
+                    video.play().catch(() => {});
+                });
+
+                video.addEventListener('error', () => {
+                    loader.style.display = 'none';
+                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Video failed to load.</div>';
+                });
+
+                video.addEventListener('click', () => {
+                    if (!isAudioEnabled) {
+                        isAudioEnabled = true;
+                        localStorage.setItem('audioEnabled', 'true');
+                        localStorage.setItem('audioTimestamp', Date.now());
+                        video.muted = false;
+                        video.play().catch(() => {});
+                    }
+                });
+
+                container.appendChild(video);
+            } catch (error) {
+                console.error('Error loading reel data:', error);
+                container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reel.</div>';
+            }
+        }
+
+        backBtn.addEventListener('click', () => {
+            const profileId = urlParams.get('id') || profilePic.dataset.id; // Fallback if needed
+            window.location.href = `profiles.html?id=${reelId.split('-')[0]}`; // Extract profile ID from reelId
+        });
+
+        loadReelData();
+    </script>
+</body>
+</html>
