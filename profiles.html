@@ -76,8 +76,8 @@
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(3, 1fr); /* 3 items per row */
+            gap: 10px; /* Reduced gap for better fit */
         }
 
         .item {
@@ -88,6 +88,7 @@
             cursor: pointer;
             transition: all 0.3s;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            aspect-ratio: 1 / 1; /* Square aspect ratio for Instagram-like look */
         }
 
         .item:hover {
@@ -97,7 +98,7 @@
 
         .item canvas, .item img {
             width: 100%;
-            height: 400px; /* Fixed height for consistency */
+            height: 100%;
             object-fit: cover;
             display: block;
             background: #000;
@@ -196,12 +197,12 @@
                         if (content.type === 'post') {
                             const img = document.createElement('img');
                             img.src = content.url;
-                            img.onerror = () => img.src = 'https://via.placeholder.com/300x400?text=Post+Not+Found';
+                            img.onerror = () => img.src = 'https://via.placeholder.com/300x300?text=Post+Not+Found';
                             item.appendChild(img);
                         } else if (content.type === 'reel') {
                             const canvas = document.createElement('canvas');
                             canvas.width = 300;
-                            canvas.height = 400; // Fixed height for uniformity
+                            canvas.height = 300; // Square for Instagram-like look
                             item.appendChild(canvas);
 
                             const video = document.createElement('video');
