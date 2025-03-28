@@ -247,11 +247,11 @@
         async function loadMetadata() {
             try {
                 const [profilesResponse, reelsResponse] = await Promise.all([
-                    fetch('profiles.json').then(res => {
+                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json').then(res => {
                         if (!res.ok) throw new Error('Profiles fetch failed');
                         return res.json();
                     }),
-                    fetch('reels.json').then(res => {
+                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json').then(res => {
                         if (!res.ok) throw new Error('Reels fetch failed');
                         return res.json();
                     })
