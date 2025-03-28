@@ -1,28 +1,13 @@
-{
-  "profiles": [
-    {
-      "id": "A1",
-      "username": "Billieeilish",
-      "profile": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Billie_Eilish_2019_by_Glenn_Francis_%28cropped%29_2.jpg/1200px-Billie_Eilish_2019_by_Glenn_Francis_%28cropped%29_2.jpg",
-      "verified": true
-    },
-    {
-      "id": "MSM",
-      "username": "masoom",
-      "profile": "https://res.cloudinary.com/dohrsxrnr/image/upload/v1742956607/Me.webp",
-      "verified": true
-    },
-    {
-      "id": "SL",
-      "username": "imlana",
-      "profile": "https://upload.wikimedia.org/wikipedia/commons/b/b4/Lana_Rhoades_2-2017_%28cropped%29.jpg",
-      "verified": true
-    },
-    {
-      "id": "MK",
-      "username": "miakhalifa",
-      "profile": "https://i.postimg.cc/fTLK6mwW/image.jpg",
-      "verified": true
-    }
-  ]
-}
+[
+  {
+    "id": "AV",
+    "username": "avneet9",
+    "name": "Avneet",
+    "profile": "https://i.postimg.cc/6QsPCxPv/image.jpg",
+    "bio": "Fan of Avneet Kaur 😍💞 📩 DM for Paid Promotion 📩 Message For H0T Picture Subscribtion",
+    "posts": [
+      "https://instagram.fixr5-1.fna.fbcdn.net/v/t51.2885-15/482788782_17939142740989076_8285946021551758610_n.jpg?se=8&stp=dst-jpg_e35_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6IkNBUk9VU0VMX0lURU0uaW1hZ2VfdXJsZ2VuLjEwMjR4MTAyNC5zZHIuZjc1NzYxLmRlZmF1bHRfaW1hZ2UifQ&_nc_ht=instagram.fixr5-1.fna.fbcdn.net&_nc_cat=108&_nc_oc=Q6cZ2QHJRoUdrwn1_4MvFGc71sW-2FkWCj3as_-8LtBOVNR7fi34c2EUmTvyvq_Vkg0s6BJ3muPmy9q15TinWcveOL3H&_nc_ohc=pIRXpFgBmzwQ7kNvgF_97zs&_nc_gid=kkacj9T5hJfq6WmfCwiR4Q&edm=AAzDSuIBAAAA&ccb=7-5&ig_cache_key=MzU4MjgzODM2NDk1NDgwNzQ2OQ%3D%3D.3-ccb7-5&oh=00_AYEX025kNkk8Mrat0X4dE2dWJt4qxPceMvcjUd3UVr1ZDA&oe=67EC0021&_nc_sid=d9ffe7"
+    ],
+    "verified": true
+  }
+]
