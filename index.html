@@ -24,7 +24,6 @@
             overflow-y: auto;
             scroll-snap-type: y mandatory;
             -webkit-overflow-scrolling: touch;
-            display: none; /* Hidden initially */
         }
 
         .video-container {
@@ -123,25 +122,9 @@
             opacity: 0;
             transition: opacity 0.9s ease-in-out;
         }
-
-        #loading-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100vh;
-            background-color: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 24px;
-            z-index: 20;
-        }
     </style>
 </head>
 <body>
-    <div id="loading-screen">Loading: 0%</div>
     <div id="reels-container"></div>
     
     <div class="fixed-overlay">
@@ -149,7 +132,7 @@
         <div class="user-info">
             <div class="username" id="username">
                 <span id="username-text">Loading...</span>
-                <img class="verify-badge" id="verify-badge" src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Twitter_Verified_Badge_Gold.svg/2048px-Twitter_Verified_Badge_Gold.svg.png" s[...]
+                <img class="verify-badge" id="verify-badge" src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Twitter_Verified_Badge_Gold.svg/2048px-Twitter_Verified_Badge_Gold.svg.png">
             </div>
         </div>
     </div>
@@ -162,9 +145,11 @@
         const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000;
         const CACHE_NAME = 'reels-cache-v1';
         let allReels = [];
-        let currentReels = [];
-        const VIDEOS_PER_BATCH = 20;
-        let currentBatchStart = 0;
+        let currentIndex = 0;
+
+        // URL se reelId extract karna
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialReelId = urlParams.get('reelId') || null;
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
@@ -195,67 +180,37 @@
                     await cache.put(url, response.clone());
                     return url;
                 }
-                return null;
+                return url; // Fail hone par bhi URL return karo
             } catch (error) {
                 console.error(`Cache fetch failed for ${url}:`, error);
-                return null;
+                return url;
             }
         }
 
-        async function isValidVideoUrl(url) {
-            try {
-                const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
-                return response.ok;
-            } catch {
-                return false;
-            }
-        }
-
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        }
-
-        async function updateLoadingScreen(percent) {
-            const loadingScreen = document.getElementById('loading-screen');
-            loadingScreen.textContent = `Loading: ${percent}%`;
-        }
-
-        async function showLoadingScreen() {
-            const loadingScreen = document.getElementById('loading-screen');
-            const reelsContainer = document.getElementById('reels-container');
-            loadingScreen.style.display = 'flex';
-            reelsContainer.style.display = 'none';
-        }
-
-        async function hideLoadingScreen() {
-            const loadingScreen = document.getElementById('loading-screen');
-            const reelsContainer = document.getElementById('reels-container');
-            loadingScreen.style.display = 'none';
-            reelsContainer.style.display = 'flex';
-        }
+        const container = document.getElementById('reels-container');
+        const profilePic = document.getElementById('profile-pic');
+        const usernameText = document.getElementById('username-text');
+        const verifyBadge = document.getElementById('verify-badge');
+        const title = document.getElementById('title');
 
         Promise.all([
-            fetch('profiles.json')
-                .then(res => res.ok ? res.json() : Promise.reject('Profiles fetch failed'))
-                .catch(() => ({ profiles: [] })),
-            fetch('reels.json')
-                .then(res => res.ok ? res.json() : Promise.reject('Reels fetch failed'))
-                .catch(() => ({ reels: [] }))
+            fetch('profiles.json').then(res => res.ok ? res.json() : ({ profiles: [] })).catch(() => ({ profiles: [] })),
+            fetch('reels.json').then(res => res.ok ? res.json() : ({ reels: [] })).catch(() => ({ reels: [] }))
         ])
         .then(([profilesData, reelsData]) => {
             const profiles = profilesData.profiles || [];
             allReels = reelsData.reels || [];
-            currentReels = shuffleArray([...allReels]);
 
-            const container = document.getElementById('reels-container');
-            const profilePic = document.getElementById('profile-pic');
-            const usernameText = document.getElementById('username-text');
-            const verifyBadge = document.getElementById('verify-badge');
-            const title = document.getElementById('title');
+            if (allReels.length === 0) {
+                container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No reels available.</div>';
+                return;
+            }
+
+            // Initial reel set karna
+            if (initialReelId) {
+                currentIndex = allReels.findIndex(reel => reel.reelId === initialReelId);
+                if (currentIndex === -1) currentIndex = 0; // Agar reelId nahi mila to pehla reel
+            }
 
             function getProfileById(id) {
                 return profiles.find(profile => profile.id === id) || { 
@@ -273,16 +228,12 @@
                 video.playsInline = true;
                 video.controls = false;
                 video.muted = !isAudioEnabled;
-                video.loop = true; // Changed from false to true for looping
+                video.loop = true;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
 
                 const cachedUrl = await fetchAndCache(reel.media);
-                if (!cachedUrl || !(await isValidVideoUrl(cachedUrl))) {
-                    console.log(`Invalid video URL: ${reel.media}`);
-                    return null;
-                }
-                video.src = cachedUrl; // Set src immediately
+                video.src = cachedUrl;
 
                 const loader = document.createElement('div');
                 loader.className = 'video-loader';
@@ -292,10 +243,13 @@
                     loader.style.display = 'block';
                 });
 
-                video.addEventListener('canplay', () => {
+                video.addEventListener('loadedmetadata', () => {
                     loader.style.display = 'none';
-                    if (index === currentBatchStart) {
-                        video.play().catch(error => console.log("Initial play error:", error));
+                    if (parseInt(video.dataset.index) === currentIndex) {
+                        video.play().catch(error => {
+                            console.log("Initial play error:", error);
+                            loader.style.display = 'none'; // Stuck na ho
+                        });
                         updateMetadata(reel);
                     }
                 });
@@ -311,6 +265,7 @@
                 video.addEventListener('error', () => {
                     loader.style.display = 'block';
                     loader.innerHTML = 'Load failed';
+                    setTimeout(() => loader.style.display = 'none', 2000); // 2 sec baad hide
                 });
 
                 video.addEventListener('click', () => {
@@ -330,56 +285,39 @@
                 return div;
             }
 
-            async function preloadVideoSources(startIndex) {
-                const endIndex = Math.min(startIndex + VIDEOS_PER_BATCH, currentReels.length);
-                const batchReels = currentReels.slice(startIndex, endIndex);
-                const total = batchReels.length;
-                let loaded = 0;
-
-                await showLoadingScreen();
-                container.innerHTML = '';
-
-                for (let i = 0; i < total; i++) {
-                    const reel = batchReels[i];
-                    const index = startIndex + i;
-                    const videoElement = await createVideoElement(reel, index);
-                    if (videoElement) {
-                        container.appendChild(videoElement);
-                    }
-                    loaded++;
-                    const percent = Math.floor((loaded / total) * 100);
-                    await updateLoadingScreen(percent);
-                }
-
-                if (container.children.length === 0) {
-                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No valid videos available.</div>';
-                    await hideLoadingScreen();
-                    return false;
-                }
-
-                await hideLoadingScreen();
-                return true;
-            }
-
             function updateMetadata(reel) {
                 fullTitle = reel.title;
                 title.innerText = reel.title;
                 const profileData = getProfileById(reel.id);
                 fetchAndCache(profileData.profile).then(cachedUrl => {
-                    profilePic.src = cachedUrl || "https://example.com/default-profile.jpg";
+                    profilePic.src = cachedUrl || "https://i.postimg.cc/3Rh3SjRb/image.jpg";
                 });
                 usernameText.innerText = profileData.username;
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
-                localStorage.setItem('lastSeenReelId', reel.id);
+            }
+
+            async function loadCurrentReel() {
+                container.innerHTML = ''; // Clear previous content
+                const reel = allReels[currentIndex];
+                const videoElement = await createVideoElement(reel, currentIndex);
+                container.appendChild(videoElement);
+                // Next reel ke liye placeholder
+                if (currentIndex + 1 < allReels.length) {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'video-container';
+                    container.appendChild(placeholder);
+                }
             }
 
             function enableScrollPlayback() {
                 let currentVideo = null;
                 const observer = new IntersectionObserver((entries) => {
                     entries.forEach(entry => {
-                        const video = entry.target;
-                        const loader = video.parentElement.querySelector('.video-loader');
+                        const video = entry.target.querySelector('video');
+                        if (!video) return; // Placeholder ke liye skip
+
                         const index = parseInt(video.dataset.index);
+                        const loader = entry.target.querySelector('.video-loader');
 
                         if (entry.isIntersecting) {
                             if (currentVideo && currentVideo !== video) {
@@ -396,42 +334,43 @@
                                     })
                                     .catch(error => {
                                         console.log("Play error:", error);
-                                        loader.style.display = 'block';
+                                        loader.style.display = 'none'; // Stuck na ho
                                     });
                             }
 
-                            const reel = currentReels[index];
-                            if (reel) updateMetadata(reel);
+                            const reel = allReels[index];
+                            if (reel) {
+                                updateMetadata(reel);
+                                window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
+                            }
 
-                            if (index === currentBatchStart + VIDEOS_PER_BATCH - 1) {
-                                loadNextBatch();
+                            // Next reel load karna agar scroll kiya
+                            if (index === currentIndex && index + 1 < allReels.length) {
+                                currentIndex++;
+                                loadNextReel();
                             }
                         } else if (video !== currentVideo) {
                             video.pause();
-                            loader.style.display = 'none';
+                            if (loader) loader.style.display = 'none';
                         }
                     });
                 }, { threshold: 0.7 });
 
-                // Observe all videos explicitly
-                const videos = document.querySelectorAll("video");
-                console.log(`Observing ${videos.length} videos`); // Debug log
-                videos.forEach(video => observer.observe(video));
+                const containers = document.querySelectorAll(".video-container");
+                containers.forEach(container => observer.observe(container));
             }
 
-            async function loadNextBatch() {
-                currentBatchStart += VIDEOS_PER_BATCH;
-                if (currentBatchStart < currentReels.length) {
-                    const success = await preloadVideoSources(currentBatchStart);
-                    if (success) {
-                        enableScrollPlayback();
-                    }
-                } else {
-                    currentBatchStart = 0;
-                    currentReels = shuffleArray([...allReels]);
-                    await preloadVideoSources(currentBatchStart);
-                    enableScrollPlayback();
+            async function loadNextReel() {
+                const reel = allReels[currentIndex];
+                const videoElement = await createVideoElement(reel, currentIndex);
+                container.replaceChild(videoElement, container.children[1]); // Placeholder replace karo
+                // Agar aur reels hain to next placeholder add karo
+                if (currentIndex + 1 < allReels.length) {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'video-container';
+                    container.appendChild(placeholder);
                 }
+                enableScrollPlayback();
             }
 
             function showFullTitle() {
@@ -454,14 +393,11 @@
             }
 
             // Initial load
-            preloadVideoSources(currentBatchStart).then(success => {
-                if (success) enableScrollPlayback();
-            });
+            loadCurrentReel().then(() => enableScrollPlayback());
         })
         .catch(error => {
             console.error('Error loading data:', error);
-            document.getElementById('reels-container').innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
-            document.getElementById('loading-screen').style.display = 'none';
+            container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
         });
     </script>
 </body>
