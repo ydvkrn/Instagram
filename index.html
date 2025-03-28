@@ -103,7 +103,7 @@
             opacity: 0;
             transform: scale(0.5);
             animation: likePop 0.4s ease-out forwards;
-            z-index: 12;
+            z-index: 100; /* Video ke upar dikhne ke liye */
         }
 
         @keyframes likePop {
@@ -213,7 +213,7 @@
             } catch (error) {
                 console.error('Error loading data:', error);
                 container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Loading failed. Retrying...</div>';
-                setTimeout(() => loadData(), 2000); // Retry after 2 seconds
+                setTimeout(() => loadData(), 2000);
                 return { profiles: [], success: false };
             }
         }
@@ -243,7 +243,7 @@
                 const video = document.createElement('video');
                 video.playsInline = true;
                 video.controls = false;
-                video.muted = false; // Shuru se muted nahi
+                video.muted = !isAudioEnabled; // Audio state ke hisaab se
                 video.loop = true;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
@@ -268,7 +268,7 @@
 
                 video.addEventListener('error', () => {
                     console.error(`Failed to load video: ${reel.media}`);
-                    nextReel(); // Skip to next reel on error
+                    nextReel();
                 });
 
                 video.addEventListener('touchstart', (e) => {
@@ -299,10 +299,16 @@
                     video.play().catch(() => {});
                 });
 
-                // Like wala event video container par
+                // Double-click event video aur div dono par
                 div.addEventListener('dblclick', (e) => {
-                    console.log("Double click triggered"); // Debug log
+                    console.log("Double click on div:", e.clientX, e.clientY);
                     showLikeAnimation(div, e);
+                });
+
+                video.addEventListener('dblclick', (e) => {
+                    console.log("Double click on video:", e.clientX, e.clientY);
+                    showLikeAnimation(div, e);
+                    e.preventDefault(); // Video ke default behavior ko rokne ke liye
                 });
 
                 div.appendChild(video);
@@ -326,7 +332,7 @@
                 if (existingProgress) existingProgress.remove();
 
                 if (currentIndex >= shuffledReels.length) {
-                    shuffledReels = shuffleArray(allReels); // Reshuffle when all reels are done
+                    shuffledReels = shuffleArray(allReels);
                     currentIndex = 0;
                 }
 
@@ -360,7 +366,7 @@
                     clearTimeout(holdTimer);
                     holdTimer = setTimeout(() => {
                         if (isHolding && currentVideo) currentVideo.pause();
-                    }, 500); // Holding time 500ms
+                    }, 500);
                 });
 
                 container.addEventListener('touchmove', (e) => {
@@ -393,7 +399,7 @@
                         clearTimeout(holdTimer);
                         holdTimer = setTimeout(() => {
                             if (isHolding && currentVideo) currentVideo.pause();
-                        }, 500); // Holding time 500ms
+                        }, 500);
                     }
                 });
 
@@ -436,12 +442,13 @@
             }
 
             function showLikeAnimation(container, event) {
-                console.log("Showing like animation"); // Debug log
+                console.log("Showing like animation at:", event.clientX, event.clientY);
                 const heart = document.createElement('img');
                 heart.src = "https://png.pngtree.com/png-vector/20220428/ourmid/pngtree-smooth-glossy-heart-vector-file-ai-and-png-png-image_4557871.png";
                 heart.className = 'like-animation';
-                heart.style.left = `${event.clientX - 75}px`;
+                heart.style.left = `${event.clientX - 75}px`; // Center the 150px wide heart
                 heart.style.top = `${event.clientY - 75}px`;
+                heart.style.zIndex = '100'; // Video ke upar
                 container.appendChild(heart);
                 setTimeout(() => {
                     if (heart.parentNode) container.removeChild(heart);
