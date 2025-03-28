@@ -124,9 +124,9 @@
 
         .progress-bar {
             position: absolute;
-            bottom: 0; /* Moved to bottom */
+            bottom: 0;
             left: 0;
-            height: 5px; /* Slightly thicker for clickability */
+            height: 5px;
             background: #fff;
             width: 0;
             z-index: 11;
@@ -156,7 +156,6 @@
         let allReels = [];
         let currentIndex = 0;
         let touchStartY = 0;
-        let loadedVideos = new Map();
 
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
@@ -200,9 +199,7 @@
                     return { profiles, success: false };
                 }
 
-                // Sort reels by reelId for sequential playback
                 allReels.sort((a, b) => a.reelId.localeCompare(b.reelId));
-
                 return { profiles, success: true };
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -230,11 +227,7 @@
                 };
             }
 
-            async function createVideoElement(reel, index) {
-                if (loadedVideos.has(index)) {
-                    return loadedVideos.get(index);
-                }
-
+            function createVideoElement(reel, index) {
                 const div = document.createElement('div');
                 div.className = 'video-container';
 
@@ -258,6 +251,8 @@
 
                 video.addEventListener('canplay', () => {
                     loader.style.display = 'none';
+                    video.play().catch(() => {});
+                    updateMetadata(reel);
                 });
 
                 video.addEventListener('timeupdate', () => {
@@ -269,13 +264,14 @@
 
                 video.addEventListener('error', () => {
                     loader.style.display = 'none';
+                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Video failed to load.</div>';
                 });
 
                 video.addEventListener('click', () => {
                     if (!isAudioEnabled) {
                         isAudioEnabled = true;
                         setAudioPersistence();
-                        document.querySelectorAll('video').forEach(v => v.muted = false);
+                        video.muted = false;
                         video.play().catch(() => {});
                     }
                 });
@@ -294,7 +290,6 @@
                 });
 
                 div.appendChild(video);
-                loadedVideos.set(index, div);
                 return div;
             }
 
@@ -307,55 +302,51 @@
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
             }
 
-            async function loadReels() {
+            async function loadCurrentReel() {
                 container.innerHTML = '';
-                for (let i = 0; i < allReels.length; i++) {
-                    const reel = allReels[i];
-                    const videoElement = await createVideoElement(reel, i);
-                    container.appendChild(videoElement);
+                if (currentIndex >= allReels.length) {
+                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">All reels viewed.</div>';
+                    return;
                 }
-                // Scroll to initial index
-                container.scrollTo({ top: currentIndex * window.innerHeight, behavior: 'auto' });
+
+                const reel = allReels[currentIndex];
+                const videoElement = createVideoElement(reel, currentIndex);
+                container.appendChild(videoElement);
+
+                // Add a placeholder for smooth scrolling
+                const placeholder = document.createElement('div');
+                placeholder.className = 'video-container';
+                container.appendChild(placeholder);
             }
 
             function enableScrollPlayback() {
-                let currentVideo = null;
+                let lastScrollTop = 0;
+                let isScrolling = false;
 
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        const video = entry.target.querySelector('video');
-                        const loader = entry.target.querySelector('.video-loader');
-                        const progressBar = entry.target.querySelector('.progress-bar');
+                container.addEventListener('scroll', () => {
+                    if (isScrolling) return;
+                    const scrollTop = container.scrollTop;
+                    const direction = scrollTop > lastScrollTop ? 'down' : 'up';
+                    lastScrollTop = scrollTop;
 
-                        if (!video) return;
-
-                        const index = parseInt(video.dataset.index);
-
-                        if (entry.isIntersecting) {
-                            document.querySelectorAll('video').forEach(v => {
-                                if (v !== video) v.pause();
-                            });
-
-                            currentVideo = video;
-                            video.muted = !isAudioEnabled;
-
-                            const reel = allReels[index];
-                            if (reel) {
-                                updateMetadata(reel);
-                                window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
-                            }
-
-                            currentIndex = index; // Update currentIndex
-                            video.currentTime = 0;
-                            video.play().catch(() => {});
-                            if (progressBar) progressBar.style.display = 'block';
-                        } else {
-                            video.pause();
-                            if (loader) loader.style.display = 'none';
-                            if (progressBar) progressBar.style.display = 'none';
-                        }
-                    });
-                }, { threshold: 0.7 });
+                    if (direction === 'down' && scrollTop >= window.innerHeight * 0.7 && currentIndex < allReels.length - 1) {
+                        isScrolling = true;
+                        currentIndex++;
+                        loadCurrentReel().then(() => {
+                            container.scrollTo({ top: 0, behavior: 'auto' });
+                            window.history.pushState({}, document.title, `/Instagram/?reelId=${allReels[currentIndex].reelId}`);
+                            isScrolling = false;
+                        });
+                    } else if (direction === 'up' && scrollTop <= window.innerHeight * 0.3 && currentIndex > 0) {
+                        isScrolling = true;
+                        currentIndex--;
+                        loadCurrentReel().then(() => {
+                            container.scrollTo({ top: 0, behavior: 'auto' });
+                            window.history.pushState({}, document.title, `/Instagram/?reelId=${allReels[currentIndex].reelId}`);
+                            isScrolling = false;
+                        });
+                    }
+                });
 
                 container.addEventListener('touchstart', (e) => {
                     touchStartY = e.touches[0].clientY;
@@ -365,14 +356,23 @@
                     const touchEndY = e.changedTouches[0].clientY;
                     const swipeDistance = touchStartY - touchEndY;
                     if (swipeDistance > 50 && currentIndex < allReels.length - 1) {
-                        container.scrollTo({ top: (currentIndex + 1) * window.innerHeight, behavior: 'smooth' });
+                        isScrolling = true;
+                        currentIndex++;
+                        loadCurrentReel().then(() => {
+                            container.scrollTo({ top: 0, behavior: 'auto' });
+                            window.history.pushState({}, document.title, `/Instagram/?reelId=${allReels[currentIndex].reelId}`);
+                            isScrolling = false;
+                        });
                     } else if (swipeDistance < -50 && currentIndex > 0) {
-                        container.scrollTo({ top: (currentIndex - 1) * window.innerHeight, behavior: 'smooth' });
+                        isScrolling = true;
+                        currentIndex--;
+                        loadCurrentReel().then(() => {
+                            container.scrollTo({ top: 0, behavior: 'auto' });
+                            window.history.pushState({}, document.title, `/Instagram/?reelId=${allReels[currentIndex].reelId}`);
+                            isScrolling = false;
+                        });
                     }
                 });
-
-                const containers = document.querySelectorAll(".video-container");
-                containers.forEach(container => observer.observe(container));
             }
 
             function showFullTitle() {
@@ -394,10 +394,10 @@
                 }, 500);
             }
 
-            loadReels().then(() => enableScrollPlayback());
+            loadCurrentReel().then(() => enableScrollPlayback());
         }
 
         initialize();
     </script>
 </body>
-</html>
+</html
