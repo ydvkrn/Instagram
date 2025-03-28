@@ -21,7 +21,7 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
+            overflow-y: scroll; /* Changed to scroll */
             scroll-snap-type: y mandatory;
             -webkit-overflow-scrolling: touch;
         }
@@ -264,7 +264,7 @@
                 };
             }
 
-            async function createVideoElement(reel, index, isPreload = false) {
+            async function createVideoElement(reel, index) {
                 if (loadedVideos.has(index)) {
                     return loadedVideos.get(index);
                 }
@@ -279,7 +279,7 @@
                 video.loop = false;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
-                video.src = reel.media; // Direct URL, no caching for simplicity
+                video.src = reel.media;
 
                 const loader = document.createElement('div');
                 loader.className = 'video-loader';
@@ -296,14 +296,10 @@
 
                 video.addEventListener('canplay', () => {
                     loader.style.display = 'none';
-                    if (!isPreload) {
-                        video.play().catch(() => {});
-                        updateMetadata(reel);
-                    }
                 });
 
                 video.addEventListener('timeupdate', () => {
-                    if (!isPreload && !video.paused) {
+                    if (!video.paused) {
                         const progress = (video.currentTime / video.duration) * 100;
                         progressBar.style.width = `${progress}%`;
                     }
@@ -324,7 +320,7 @@
                 });
 
                 video.addEventListener('dblclick', (e) => {
-                    if (!isPreload) showLikeAnimation(div, e);
+                    showLikeAnimation(div, e);
                 });
 
                 div.appendChild(video);
@@ -341,60 +337,17 @@
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
             }
 
-            async function loadCurrentReel() {
+            async function loadReels() {
                 container.innerHTML = '';
-                if (currentIndex === -1) {
-                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">All reels viewed. Refresh to start over.</div>';
-                    return;
-                }
-
-                const currentReel = allReels[currentIndex];
-                const currentVideoElement = await createVideoElement(currentReel, currentIndex);
-                container.appendChild(currentVideoElement);
-
-                const nextIndex = getRandomReel(currentIndex);
-                if (nextIndex !== -1) {
-                    const nextReel = allReels[nextIndex];
-                    const nextVideoElement = await createVideoElement(nextReel, nextIndex, true);
-                    container.appendChild(nextVideoElement);
+                for (let i = 0; i < allReels.length; i++) {
+                    const reel = allReels[i];
+                    const videoElement = await createVideoElement(reel, i);
+                    container.appendChild(videoElement);
                 }
             }
 
             function enableScrollPlayback() {
                 let currentVideo = null;
-                let lastScrollTop = 0;
-
-                container.addEventListener('touchstart', (e) => {
-                    touchStartY = e.touches[0].clientY;
-                });
-
-                container.addEventListener('touchend', (e) => {
-                    const touchEndY = e.changedTouches[0].clientY;
-                    const swipeDistance = touchStartY - touchEndY;
-                    if (swipeDistance > 50) {
-                        currentIndex = getRandomReel(currentIndex);
-                        viewedReels.push(currentIndex);
-                        loadCurrentReel();
-                    }
-                });
-
-                container.addEventListener('scroll', () => {
-                    const scrollTop = container.scrollTop;
-                    const direction = scrollTop > lastScrollTop ? 'down' : 'up';
-                    lastScrollTop = scrollTop;
-
-                    const videoContainers = document.querySelectorAll('.video-container');
-                    if (videoContainers.length < 2) return;
-
-                    const currentContainer = videoContainers[0];
-                    const nextContainer = videoContainers[1];
-
-                    if (direction === 'down' && nextContainer.getBoundingClientRect().top <= window.innerHeight * 0.7) {
-                        currentIndex = getRandomReel(currentIndex);
-                        viewedReels.push(currentIndex);
-                        loadCurrentReel();
-                    }
-                });
 
                 const observer = new IntersectionObserver((entries) => {
                     entries.forEach(entry => {
@@ -430,6 +383,23 @@
                         }
                     });
                 }, { threshold: 0.7 });
+
+                container.addEventListener('touchstart', (e) => {
+                    touchStartY = e.touches[0].clientY;
+                });
+
+                container.addEventListener('touchend', (e) => {
+                    const touchEndY = e.changedTouches[0].clientY;
+                    const swipeDistance = touchStartY - touchEndY;
+                    if (swipeDistance > 50) {
+                        const nextIndex = getRandomReel(currentIndex);
+                        if (nextIndex !== -1) {
+                            currentIndex = nextIndex;
+                            viewedReels.push(currentIndex);
+                            container.scrollTo({ top: currentIndex * window.innerHeight, behavior: 'smooth' });
+                        }
+                    }
+                });
 
                 const containers = document.querySelectorAll(".video-container");
                 containers.forEach(container => observer.observe(container));
@@ -470,10 +440,10 @@
                 loadedVideos.clear();
                 currentIndex = getRandomReel(-1);
                 viewedReels.push(currentIndex);
-                loadCurrentReel();
+                loadReels().then(() => enableScrollPlayback());
             }
 
-            loadCurrentReel().then(() => enableScrollPlayback());
+            loadReels().then(() => enableScrollPlayback());
         }
 
         initialize();
