@@ -38,26 +38,6 @@
             object-fit: cover;
             display: block;
             background-color: #000;
-            pointer-events: none;
-        }
-
-        .video-loader {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 32px;
-            height: 32px;
-            border: 3px solid #fff;
-            border-top: 3px solid transparent;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            z-index: 10;
-        }
-
-        @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
         .fixed-overlay {
@@ -78,14 +58,14 @@
             border-radius: 50%;
             border: 2px solid white;
             cursor: pointer;
-            pointer-events: auto; /* Enable click */
+            pointer-events: auto;
         }
 
         .user-info {
             margin-left: 10px;
             color: white;
             cursor: pointer;
-            pointer-events: auto; /* Enable click */
+            pointer-events: auto;
         }
 
         .username {
@@ -166,14 +146,12 @@
 
     <script>
         let fullTitle = "";
-        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false; // Default false
-        const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000; // 30 minutes
+        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false;
         let allReels = [];
         let currentIndex = 0;
         let touchStartY = 0;
         let isTransitioning = false;
         let currentVideo = null;
-        let isFirstVideo = localStorage.getItem('firstVideoPlayed') !== 'true'; // Persist across refresh
         let holdTimer = null;
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -188,26 +166,15 @@
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
-            localStorage.setItem('audioTimestamp', Date.now());
             isAudioEnabled = true;
             if (currentVideo) {
-                currentVideo.muted = false; // Ensure current video is unmuted
-                console.log("Audio unmuted and saved to LocalStorage");
+                currentVideo.muted = false;
+                currentVideo.play().catch((error) => console.log("Play error:", error));
             }
         }
 
-        function shouldKeepAudioEnabled() {
-            const timestamp = localStorage.getItem('audioTimestamp');
-            if (!timestamp) return false;
-            return Date.now() - parseInt(timestamp) < AUDIO_PERSISTENCE_DURATION;
-        }
-
-        if (shouldKeepAudioEnabled()) {
-            isAudioEnabled = true;
+        if (isAudioEnabled) {
             console.log("Audio enabled from LocalStorage");
-        } else {
-            localStorage.removeItem('audioEnabled');
-            localStorage.removeItem('audioTimestamp');
         }
 
         async function loadData() {
@@ -247,7 +214,9 @@
                 return profiles.find(profile => profile.id === id) || { 
                     username: "bot", 
                     profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg", 
-                    verified彼此
+                    verified: true
+                };
+            }
 
             function createVideoElement(reel, index) {
                 const div = document.createElement('div');
@@ -256,29 +225,20 @@
                 const video = document.createElement('video');
                 video.playsInline = true;
                 video.controls = false;
-                video.muted = !isAudioEnabled; // Set initial mute state
+                video.muted = false; // Shuru se muted nahi
                 video.loop = true;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
                 video.src = reel.media;
-
-                const loader = document.createElement('div');
-                loader.className = 'video-loader';
-                loader.style.display = 'block';
-                div.appendChild(loader);
 
                 const progressBar = document.createElement('div');
                 progressBar.className = 'progress-bar';
                 document.body.appendChild(progressBar);
 
                 video.addEventListener('canplay', () => {
-                    loader.style.display = 'none';
                     currentVideo = video;
                     updateMetadata(reel);
-                    if (!isFirstVideo) {
-                        video.play().catch((error) => console.log("Play error:", error));
-                    }
-                    console.log("Video can play, muted:", video.muted);
+                    video.play().catch((error) => console.log("Initial play error:", error));
                 });
 
                 video.addEventListener('timeupdate', () => {
@@ -289,16 +249,13 @@
                 });
 
                 video.addEventListener('error', () => {
-                    loader.style.display = 'none';
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Video failed to load.</div>';
                 });
 
-                // Touch event to unmute and play
                 video.addEventListener('touchstart', (e) => {
-                    e.preventDefault(); // Prevent default touch behavior
+                    e.preventDefault();
                     if (!isAudioEnabled) {
                         setAudioPersistence();
-                        video.play().catch((error) => console.log("Play error after touch:", error));
                     }
                 });
 
@@ -412,14 +369,6 @@
                         clearTimeout(holdTimer);
                         if (currentVideo) currentVideo.play().catch(() => {});
                         isHolding = false;
-                    }
-                });
-
-                container.addEventListener('click', (e) => {
-                    if (isFirstVideo && currentVideo) {
-                        currentVideo.play().catch(() => {});
-                        isFirstVideo = false;
-                        localStorage.setItem('firstVideoPlayed', 'true');
                     }
                 });
 
