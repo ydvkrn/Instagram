@@ -22,20 +22,27 @@
 
         .header {
             text-align: center;
-            padding: 40px 0;
+            padding: 30px 0; /* Reduced padding for better spacing */
             background: #fff;
             border-radius: 0 0 20px 20px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
+        .profile-pic-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
         .profile-pic {
-            width: 150px;
-            height: 150px;
+            width: 120px; /* Slightly smaller for better proportion */
+            height: 120px;
             border-radius: 50%;
-            border: 5px solid #fff;
+            border: 4px solid #fff; /* Slightly thinner border */
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s;
-            margin-bottom: 20px;
+            object-fit: cover; /* Ensures the image fits well */
         }
 
         .profile-pic:hover {
@@ -88,7 +95,7 @@
             cursor: pointer;
             transition: all 0.3s;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            aspect-ratio: 9 / 16; /* Vertical aspect ratio for taller videos (Instagram Reels-like) */
+            aspect-ratio: 9 / 16; /* Vertical aspect ratio for taller videos */
         }
 
         .item:hover {
@@ -104,15 +111,6 @@
             background: #000;
         }
 
-        .item-logo {
-            position: absolute;
-            top: 5px; /* Adjusted for better fit */
-            right: 5px; /* Adjusted for better fit */
-            width: 20px; /* Reduced size */
-            height: 20px; /* Reduced size */
-            z-index: 10;
-        }
-
         .error {
             text-align: center;
             color: #ff3366;
@@ -125,7 +123,9 @@
 <body>
     <div class="container">
         <div class="header">
-            <img class="profile-pic" id="profile-pic" src="">
+            <div class="profile-pic-container">
+                <img class="profile-pic" id="profile-pic" src="">
+            </div>
             <div class="username" id="username">@loading</div>
             <div class="stats">
                 <span><strong id="content-count">0</strong> Posts</span>
@@ -187,12 +187,6 @@
                     allContent.forEach(content => {
                         const item = document.createElement('div');
                         item.className = 'item';
-
-                        // Add the logo to each item
-                        const logo = document.createElement('img');
-                        logo.className = 'item-logo';
-                        logo.src = 'https://i.postimg.cc/X77btM3F/20250328-151255.png';
-                        item.appendChild(logo);
 
                         if (content.type === 'post') {
                             const img = document.createElement('img');
