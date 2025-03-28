@@ -55,7 +55,6 @@
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             z-index: 10;
-            display: none;
         }
 
         @keyframes spin {
@@ -180,15 +179,20 @@
         let fullTitle = "";
         let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true';
         const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000;
-        const CACHE_NAME = 'reels-cache-v1';
         let allReels = [];
         let currentIndex = 0;
         let viewedReels = [];
         let touchStartY = 0;
-        let loadedVideos = new Map(); // Cache for loaded videos
+        let loadedVideos = new Map();
 
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
+
+        const container = document.getElementById('reels-container');
+        const profilePic = document.getElementById('profile-pic');
+        const usernameText = document.getElementById('username-text');
+        const verifyBadge = document.getElementById('verify-badge');
+        const title = document.getElementById('title');
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
@@ -208,51 +212,41 @@
             localStorage.removeItem('audioTimestamp');
         }
 
-        async function fetchAndCache(url) {
-            try {
-                const cache = await caches.open(CACHE_NAME);
-                let cachedResponse = await cache.match(url);
-                if (cachedResponse) return cachedResponse.url;
-
-                const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
-                if (response.ok) {
-                    await cache.put(url, response.clone());
-                    return url;
-                }
-                return url;
-            } catch (error) {
-                console.error(`Cache fetch failed for ${url}:`, error);
-                return url;
-            }
-        }
-
-        const container = document.getElementById('reels-container');
-        const profilePic = document.getElementById('profile-pic');
-        const usernameText = document.getElementById('username-text');
-        const verifyBadge = document.getElementById('verify-badge');
-        const title = document.getElementById('title');
-
         function getRandomReel(excludeIndex) {
             let availableReels = allReels.filter((_, idx) => !viewedReels.includes(idx) && idx !== excludeIndex);
             if (availableReels.length === 0) {
-                return -1; // End of reels
+                return -1;
             }
             const randomIdx = Math.floor(Math.random() * availableReels.length);
             return allReels.indexOf(availableReels[randomIdx]);
         }
 
-        Promise.all([
-            fetch('profiles.json').then(res => res.ok ? res.json() : ({ profiles: [] })).catch(() => ({ profiles: [] })),
-            fetch('reels.json').then(res => res.ok ? res.json() : ({ reels: [] })).catch(() => ({ reels: [] }))
-        ])
-        .then(([profilesData, reelsData]) => {
-            const profiles = profilesData.profiles || [];
-            allReels = reelsData.reels || [];
+        async function loadData() {
+            try {
+                const [profilesResponse, reelsResponse] = await Promise.all([
+                    fetch('profiles.json').then(res => res.ok ? res.json() : ({ profiles: [] })),
+                    fetch('reels.json').then(res => res.ok ? res.json() : ({ reels: [] }))
+                ]);
 
-            if (allReels.length === 0) {
-                container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No reels available.</div>';
-                return;
+                const profiles = profilesResponse.profiles || [];
+                allReels = reelsResponse.reels || [];
+
+                if (allReels.length === 0) {
+                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No reels available.</div>';
+                    return { profiles, success: false };
+                }
+
+                return { profiles, success: true };
+            } catch (error) {
+                console.error('Error loading data:', error);
+                container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
+                return { profiles: [], success: false };
             }
+        }
+
+        async function initialize() {
+            const { profiles, success } = await loadData();
+            if (!success) return;
 
             if (initialReelId) {
                 currentIndex = allReels.findIndex(reel => reel.reelId === initialReelId);
@@ -282,12 +276,10 @@
                 video.playsInline = true;
                 video.controls = false;
                 video.muted = !isAudioEnabled;
-                video.loop = false; // No looping
+                video.loop = false;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
-
-                const cachedUrl = await fetchAndCache(reel.media);
-                video.src = cachedUrl;
+                video.src = reel.media; // Direct URL, no caching for simplicity
 
                 const loader = document.createElement('div');
                 loader.className = 'video-loader';
@@ -305,7 +297,7 @@
                 video.addEventListener('canplay', () => {
                     loader.style.display = 'none';
                     if (!isPreload) {
-                        video.play().catch(() => {}); // Silent fail
+                        video.play().catch(() => {});
                         updateMetadata(reel);
                     }
                 });
@@ -336,7 +328,7 @@
                 });
 
                 div.appendChild(video);
-                loadedVideos.set(index, div); // Cache video
+                loadedVideos.set(index, div);
                 return div;
             }
 
@@ -344,16 +336,14 @@
                 fullTitle = reel.title;
                 title.innerText = reel.title;
                 const profileData = getProfileById(reel.id);
-                fetchAndCache(profileData.profile).then(cachedUrl => {
-                    profilePic.src = cachedUrl || "https://i.postimg.cc/3Rh3SjRb/image.jpg";
-                });
+                profilePic.src = profileData.profile || "https://i.postimg.cc/3Rh3SjRb/image.jpg";
                 usernameText.innerText = profileData.username;
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
             }
 
             async function loadCurrentReel() {
                 container.innerHTML = '';
-                if                if (currentIndex === -1) {
+                if (currentIndex === -1) {
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">All reels viewed. Refresh to start over.</div>';
                     return;
                 }
@@ -430,7 +420,7 @@
                                 window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
                             }
 
-                            video.currentTime = 0; // Reset to start
+                            video.currentTime = 0;
                             video.play().catch(() => {});
                             if (progressBar) progressBar.style.display = 'block';
                         } else {
@@ -464,9 +454,8 @@
                 }, 500);
             }
 
-            function showError(message, container = null) {
-                const target = container || document.body;
-                const errorDiv = target.querySelector('.error-message');
+            function showError(message, container) {
+                const errorDiv = container.querySelector('.error-message');
                 if (errorDiv) {
                     errorDiv.textContent = message;
                     errorDiv.style.display = 'block';
@@ -485,11 +474,9 @@
             }
 
             loadCurrentReel().then(() => enableScrollPlayback());
-        })
-        .catch(error => {
-            console.error('Error loading data:', error);
-            container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
-        });
+        }
+
+        initialize();
     </script>
 </body>
 </html>
