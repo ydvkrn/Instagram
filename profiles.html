@@ -88,7 +88,7 @@
             cursor: pointer;
             transition: all 0.3s;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            aspect-ratio: 1 / 1; /* Square aspect ratio for Instagram-like look */
+            aspect-ratio: 9 / 16; /* Vertical aspect ratio for taller videos (Instagram Reels-like) */
         }
 
         .item:hover {
@@ -106,10 +106,10 @@
 
         .item-logo {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 30px;
-            height: 30px;
+            top: 5px; /* Adjusted for better fit */
+            right: 5px; /* Adjusted for better fit */
+            width: 20px; /* Reduced size */
+            height: 20px; /* Reduced size */
             z-index: 10;
         }
 
@@ -197,12 +197,12 @@
                         if (content.type === 'post') {
                             const img = document.createElement('img');
                             img.src = content.url;
-                            img.onerror = () => img.src = 'https://via.placeholder.com/300x300?text=Post+Not+Found';
+                            img.onerror = () => img.src = 'https://via.placeholder.com/300x533?text=Post+Not+Found';
                             item.appendChild(img);
                         } else if (content.type === 'reel') {
                             const canvas = document.createElement('canvas');
                             canvas.width = 300;
-                            canvas.height = 300; // Square for Instagram-like look
+                            canvas.height = 533; // 9:16 aspect ratio (300 * 16/9 ≈ 533)
                             item.appendChild(canvas);
 
                             const video = document.createElement('video');
