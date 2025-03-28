@@ -19,7 +19,7 @@
         #reels-container {
             width: 100%;
             height: 100vh;
-            overflow: hidden; /* Prevent unintended scrolling */
+            overflow: hidden;
             position: relative;
         }
 
@@ -120,11 +120,11 @@
         }
 
         .progress-bar {
-            position: absolute;
+            position: fixed; /* Instagram-style fixed at bottom */
             bottom: 0;
             left: 0;
-            height: 5px;
-            background: #fff;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.8);
             width: 0;
             z-index: 11;
             cursor: pointer;
@@ -210,12 +210,11 @@
             const { profiles, success } = await loadData();
             if (!success) return;
 
-            if (initialReelId) {
-                currentIndex = allReels.findIndex(reel => reel.reelId === initialReelId);
-                if (currentIndex === -1) currentIndex = 0;
-            } else {
-                currentIndex = 0;
-            }
+            // Random first video
+            currentIndex = initialReelId ? 
+                allReels.findIndex(reel => reel.reelId === initialReelId) : 
+                Math.floor(Math.random() * allReels.length);
+            if (currentIndex === -1) currentIndex = 0;
 
             function getProfileById(id) {
                 return profiles.find(profile => profile.id === id) || { 
@@ -245,7 +244,7 @@
 
                 const progressBar = document.createElement('div');
                 progressBar.className = 'progress-bar';
-                div.appendChild(progressBar);
+                document.body.appendChild(progressBar); // Fixed to body
 
                 video.addEventListener('canplay', () => {
                     loader.style.display = 'none';
@@ -302,6 +301,9 @@
 
             async function loadCurrentReel() {
                 container.innerHTML = '';
+                const existingProgress = document.querySelector('.progress-bar');
+                if (existingProgress) existingProgress.remove();
+
                 if (currentIndex >= allReels.length) {
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">All reels viewed.</div>';
                     return;
