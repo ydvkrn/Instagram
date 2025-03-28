@@ -146,8 +146,11 @@
         const CACHE_NAME = 'reels-cache-v1';
         let allReels = [];
         let currentIndex = 0;
-        let viewedReels = []; // Viewed reels ka array
-        let reelHistory = []; // Scroll up ke liye history
+        let viewedReels = [];
+
+        // URL se reelId extract karna
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialReelId = urlParams.get('reelId') || null;
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
@@ -191,11 +194,11 @@
         const verifyBadge = document.getElementById('verify-badge');
         const title = document.getElementById('title');
 
-        function getRandomReel() {
-            let availableReels = allReels.filter((_, idx) => !viewedReels.includes(idx));
+        function getRandomReel(excludeIndex) {
+            let availableReels = allReels.filter((_, idx) => !viewedReels.includes(idx) && idx !== excludeIndex);
             if (availableReels.length === 0) {
-                viewedReels = []; // Reset agar saare dekh liye
-                availableReels = allReels;
+                viewedReels = []; // Reset viewed reels if all are seen
+                availableReels = allReels.filter((_, idx) => idx !== excludeIndex);
             }
             const randomIdx = Math.floor(Math.random() * availableReels.length);
             return allReels.indexOf(availableReels[randomIdx]);
@@ -214,10 +217,14 @@
                 return;
             }
 
-            // Initial random reel
-            currentIndex = getRandomReel();
+            // Initial reel set karna
+            if (initialReelId) {
+                currentIndex = allReels.findIndex(reel => reel.reelId === initialReelId);
+                if (currentIndex === -1) currentIndex = getRandomReel(-1);
+            } else {
+                currentIndex = getRandomReel(-1);
+            }
             viewedReels.push(currentIndex);
-            reelHistory.push(currentIndex);
 
             function getProfileById(id) {
                 return profiles.find(profile => profile.id === id) || { 
@@ -293,18 +300,14 @@
                 const videoElement = await createVideoElement(reel, currentIndex);
                 container.appendChild(videoElement);
 
-                // Placeholder for previous and next reels
-                if (reelHistory.length > 1) {
-                    const prevPlaceholder = document.createElement('div');
-                    prevPlaceholder.className = 'video-container';
-                    container.insertBefore(prevPlaceholder, videoElement);
-                }
+                // Placeholder for next reel
                 const nextPlaceholder = document.createElement('div');
                 nextPlaceholder.className = 'video-container';
                 container.appendChild(nextPlaceholder);
             }
 
             function enableScrollPlayback() {
+                let currentVideo = null;
                 let lastScrollTop = 0;
 
                 container.addEventListener('scroll', () => {
@@ -313,23 +316,14 @@
                     lastScrollTop = scrollTop;
 
                     const videoContainers = document.querySelectorAll('.video-container');
-                    const prevContainer = videoContainers[0];
-                    const currentContainer = videoContainers[1];
-                    const nextContainer = videoContainers[2];
+                    const currentContainer = videoContainers[0]; // First is current reel
+                    const nextContainer = videoContainers[1]; // Second is placeholder
 
                     if (direction === 'down' && nextContainer && nextContainer.getBoundingClientRect().top <= window.innerHeight * 0.7) {
-                        // Scroll niche: Naya random reel
-                        currentIndex = getRandomReel();
+                        // Scrolled to next placeholder
+                        currentIndex = getRandomReel(currentIndex);
                         viewedReels.push(currentIndex);
-                        reelHistory.push(currentIndex);
                         loadCurrentReel();
-                    } else if (direction === 'up' && prevContainer && prevContainer.getBoundingClientRect().bottom >= window.innerHeight * 0.3) {
-                        // Scroll upar: Previous reel
-                        if (reelHistory.length > 1) {
-                            reelHistory.pop(); // Current ko remove
-                            currentIndex = reelHistory[reelHistory.length - 1];
-                            loadCurrentReel();
-                        }
                     }
                 });
 
@@ -340,20 +334,24 @@
 
                         if (!video) return;
 
+                        const index = parseInt(video.dataset.index);
+
                         if (entry.isIntersecting) {
                             document.querySelectorAll('video').forEach(v => {
                                 if (v !== video) v.pause();
                             });
 
+                            currentVideo = video;
                             video.muted = !isAudioEnabled;
-                            const reel = allReels[currentIndex];
+
+                            const reel = allReels[index];
                             if (reel) {
                                 updateMetadata(reel);
                                 window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
                             }
 
                             video.play().catch(error => console.log("Play error:", error));
-                        } else {
+                        } else if (video !== currentVideo) {
                             video.pause();
                             if (loader) loader.style.display = 'none';
                         }
