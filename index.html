@@ -5,7 +5,125 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Reel Of The Day</title>
     <style>
-        /* Existing styles remain unchanged, adding new styles */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        #reels-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            scroll-snap-type: y mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            scroll-snap-align: start;
+            flex-shrink: 0;
+            background-color: #000;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background-color: #000;
+        }
+
+        .video-loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 32px;
+            border: 3px solid #fff;
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            z-index: 10;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .fixed-overlay {
+            position: fixed;
+            bottom: 80px;
+            left: 15px;
+            width: calc(100% - 30px);
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: transparent;
+        }
+
+        .profile-pic {
+            width: 45px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .user-info {
+            margin-left: 10px;
+            color: white;
+        }
+
+        .username {
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+
+        .verify-badge {
+            width: 16px;
+            height: 16px;
+            margin-left: 5px;
+        }
+
+        .title {
+            font-size: 14px;
+            opacity: 0.9;
+            position: fixed;
+            bottom: 40px;
+            left: 15px;
+            width: calc(100% - 30px);
+            color: white;
+            padding: 5px 10px;
+            background: transparent;
+            border-radius: 8px;
+            white-space: normal;
+            cursor: pointer;
+        }
+
+        .like-animation {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            opacity: 0;
+            transition: opacity 0.9s ease-in-out;
+        }
+
+        /* New Styles */
         .progress-bar {
             position: absolute;
             top: 0;
@@ -13,7 +131,6 @@
             height: 3px;
             background: #fff;
             width: 0;
-            transition: width 0.1s linear;
             z-index: 11;
         }
 
@@ -27,6 +144,7 @@
             padding: 10px 20px;
             border-radius: 5px;
             display: none;
+            z-index: 12;
         }
     </style>
 </head>
@@ -54,7 +172,6 @@
         let currentIndex = 0;
         let viewedReels = [];
         let touchStartY = 0;
-        let touchEndY = 0;
 
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
@@ -111,16 +228,29 @@
             return allReels.indexOf(availableReels[randomIdx]);
         }
 
+        // Improvement 1: Better Error Handling
+        async function fetchWithErrorHandling(url, fallback) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Failed to fetch ${url}`);
+                return await response.json();
+            } catch (error) {
+                console.error(`Fetch error for ${url}:`, error);
+                showError(`Failed to load ${url.split('.')[0]}`);
+                return fallback;
+            }
+        }
+
         Promise.all([
-            fetch('profiles.json').then(res => res.ok ? res.json() : Promise.reject('Profiles not found')).catch(() => ({ profiles: [] })),
-            fetch('reels.json').then(res => res.ok ? res.json() : Promise.reject('Reels not found')).catch(() => ({ reels: [] }))
+            fetchWithErrorHandling('profiles.json', { profiles: [] }),
+            fetchWithErrorHandling('reels.json', { reels: [] })
         ])
         .then(([profilesData, reelsData]) => {
             const profiles = profilesData.profiles || [];
             allReels = reelsData.reels || [];
 
             if (allReels.length === 0) {
-                showError('No reels available');
+                container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No reels available.</div>';
                 return;
             }
 
@@ -160,10 +290,12 @@
                 loader.style.display = 'block';
                 div.appendChild(loader);
 
+                // Improvement 2: Progress Bar
                 const progressBar = document.createElement('div');
                 progressBar.className = 'progress-bar';
                 div.appendChild(progressBar);
 
+                // Improvement 1: Error Message Container
                 const errorMessage = document.createElement('div');
                 errorMessage.className = 'error-message';
                 div.appendChild(errorMessage);
@@ -171,13 +303,14 @@
                 video.addEventListener('canplay', () => {
                     loader.style.display = 'none';
                     if (!isPreload) {
-                        video.play().catch(error => console.log("Play error:", error));
+                        video.play().catch(error => showError('Playback failed', div));
                         updateMetadata(reel);
                     }
                 });
 
+                // Progress Bar Update
                 video.addEventListener('timeupdate', () => {
-                    if (!isPreload) {
+                    if (!isPreload && !video.paused) {
                         const progress = (video.currentTime / video.duration) * 100;
                         progressBar.style.width = `${progress}%`;
                     }
@@ -185,7 +318,7 @@
 
                 video.addEventListener('error', () => {
                     loader.style.display = 'none';
-                    showError('Failed to load video', div);
+                    showError('Video failed to load', div);
                 });
 
                 video.addEventListener('click', () => {
@@ -193,7 +326,7 @@
                         isAudioEnabled = true;
                         setAudioPersistence();
                         document.querySelectorAll('video').forEach(v => v.muted = false);
-                        video.play().catch(error => console.log("Play error:", error));
+                        video.play().catch(error => showError('Playback failed', div));
                     }
                 });
 
@@ -216,11 +349,12 @@
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
             }
 
+            // Improvement 5: Preloading
             async function loadCurrentReel() {
                 container.innerHTML = '';
-                const reel = allReels[currentIndex];
-                const videoElement = await createVideoElement(reel, currentIndex);
-                container.appendChild(videoElement);
+                const currentReel = allReels[currentIndex];
+                const currentVideoElement = await createVideoElement(currentReel, currentIndex);
+                container.appendChild(currentVideoElement);
 
                 // Preload next reel
                 const nextIndex = getRandomReel(currentIndex);
@@ -233,27 +367,20 @@
                 let currentVideo = null;
                 let lastScrollTop = 0;
 
-                // Swipe gesture support
+                // Improvement 3: Swipe Gestures
                 container.addEventListener('touchstart', (e) => {
                     touchStartY = e.touches[0].clientY;
                 });
 
                 container.addEventListener('touchend', (e) => {
-                    touchEndY = e.changedTouches[0].clientY;
-                    handleSwipe();
-                });
-
-                function handleSwipe() {
+                    const touchEndY = e.changedTouches[0].clientY;
                     const swipeDistance = touchStartY - touchEndY;
-                    if (Math.abs(swipeDistance) > 50) { // Minimum swipe distance
-                        if (swipeDistance > 0) {
-                            // Swipe up - next reel
-                            currentIndex = getRandomReel(currentIndex);
-                            viewedReels.push(currentIndex);
-                            loadCurrentReel();
-                        }
+                    if (swipeDistance > 50) { // Swipe up
+                        currentIndex = getRandomReel(currentIndex);
+                        viewedReels.push(currentIndex);
+                        loadCurrentReel();
                     }
-                }
+                });
 
                 container.addEventListener('scroll', () => {
                     const scrollTop = container.scrollTop;
@@ -266,7 +393,7 @@
                     const currentContainer = videoContainers[0];
                     const nextContainer = videoContainers[1];
 
-                    if (direction === 'down' && nextContainer && nextContainer.getBoundingClientRect().top <= window.innerHeight * 0.7) {
+                    if (direction === 'down' && nextContainer.getBoundingClientRect().top <= window.innerHeight * 0.7) {
                         currentIndex = getRandomReel(currentIndex);
                         viewedReels.push(currentIndex);
                         loadCurrentReel();
@@ -297,12 +424,12 @@
                                 window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
                             }
 
-                            video.play().catch(error => console.log("Play error:", error));
-                            progressBar.style.display = 'block';
+                            video.play().catch(error => showError('Playback failed', entry.target));
+                            if (progressBar) progressBar.style.display = 'block';
                         } else if (video !== currentVideo) {
                             video.pause();
                             if (loader) loader.style.display = 'none';
-                            progressBar.style.display = 'none';
+                            if (progressBar) progressBar.style.display = 'none';
                         }
                     });
                 }, { threshold: 0.7 });
@@ -330,24 +457,20 @@
                 }, 500);
             }
 
+            // Improvement 1: Error Display Function
             function showError(message, container = null) {
                 const target = container || document.body;
-                const errorDiv = target.querySelector('.error-message') || document.createElement('div');
-                errorDiv.className = 'error-message';
-                errorDiv.textContent = message;
-                errorDiv.style.display = 'block';
-                if (!container) target.appendChild(errorDiv);
-                setTimeout(() => {
-                    errorDiv.style.display = 'none';
-                    if (!container) target.removeChild(errorDiv);
-                }, 3000);
+                const errorDiv = target.querySelector('.error-message');
+                if (errorDiv) {
+                    errorDiv.textContent = message;
+                    errorDiv.style.display = 'block';
+                    setTimeout(() => {
+                        errorDiv.style.display = 'none';
+                    }, 3000);
+                }
             }
 
             loadCurrentReel().then(() => enableScrollPlayback());
-        })
-        .catch(error => {
-            console.error('Error loading data:', error);
-            showError('Failed to load reels');
         });
     </script>
 </body>
