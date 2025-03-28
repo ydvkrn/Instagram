@@ -158,8 +158,8 @@
 
     <script>
         let fullTitle = "";
-        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true';
-        const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000;
+        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false; // Default false if not set
+        const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000; // 30 minutes
         const CACHE_NAME = 'reels-cache-v1';
         let allReels = [];
         let currentReels = [];
@@ -169,6 +169,8 @@
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
             localStorage.setItem('audioTimestamp', Date.now());
+            isAudioEnabled = true; // Permanently set to true
+            document.querySelectorAll('video').forEach(v => v.muted = false); // Unmute all videos
         }
 
         function shouldKeepAudioEnabled() {
@@ -272,7 +274,7 @@
                 const video = document.createElement('video');
                 video.playsInline = true;
                 video.controls = false;
-                video.muted = !isAudioEnabled;
+                video.muted = !isAudioEnabled; // Initial state based on preference
                 video.loop = false;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
@@ -282,7 +284,7 @@
                     console.log(`Invalid video URL: ${reel.media}`);
                     return null;
                 }
-                video.src = cachedUrl; // Set src immediately
+                video.src = cachedUrl;
 
                 const loader = document.createElement('div');
                 loader.className = 'video-loader';
@@ -313,11 +315,10 @@
                     loader.innerHTML = 'Load failed';
                 });
 
-                video.addEventListener('click', () => {
+                // Touch event to permanently unmute
+                video.addEventListener('touchstart', () => {
                     if (!isAudioEnabled) {
-                        isAudioEnabled = true;
-                        setAudioPersistence();
-                        document.querySelectorAll('video').forEach(v => v.muted = false);
+                        setAudioPersistence(); // Permanently unmute and save to LocalStorage
                         video.play().catch(error => console.log("Play error:", error));
                     }
                 });
@@ -413,9 +414,8 @@
                     });
                 }, { threshold: 0.7 });
 
-                // Observe all videos explicitly
                 const videos = document.querySelectorAll("video");
-                console.log(`Observing ${videos.length} videos`); // Debug log
+                console.log(`Observing ${videos.length} videos`);
                 videos.forEach(video => observer.observe(video));
             }
 
