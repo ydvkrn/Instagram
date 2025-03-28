@@ -166,7 +166,7 @@
 
     <script>
         let fullTitle = "";
-        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false; // Default false if not set
+        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false; // Default false
         const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000; // 30 minutes
         let allReels = [];
         let currentIndex = 0;
@@ -189,8 +189,11 @@
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
             localStorage.setItem('audioTimestamp', Date.now());
-            isAudioEnabled = true; // Permanently set to true
-            if (currentVideo) currentVideo.muted = false; // Unmute current video
+            isAudioEnabled = true;
+            if (currentVideo) {
+                currentVideo.muted = false; // Ensure current video is unmuted
+                console.log("Audio unmuted and saved to LocalStorage");
+            }
         }
 
         function shouldKeepAudioEnabled() {
@@ -201,6 +204,7 @@
 
         if (shouldKeepAudioEnabled()) {
             isAudioEnabled = true;
+            console.log("Audio enabled from LocalStorage");
         } else {
             localStorage.removeItem('audioEnabled');
             localStorage.removeItem('audioTimestamp');
@@ -243,9 +247,7 @@
                 return profiles.find(profile => profile.id === id) || { 
                     username: "bot", 
                     profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg", 
-                    verified: true
-                };
-            }
+                    verified彼此
 
             function createVideoElement(reel, index) {
                 const div = document.createElement('div');
@@ -254,7 +256,7 @@
                 const video = document.createElement('video');
                 video.playsInline = true;
                 video.controls = false;
-                video.muted = !isAudioEnabled; // Initial state based on preference
+                video.muted = !isAudioEnabled; // Set initial mute state
                 video.loop = true;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
@@ -274,8 +276,9 @@
                     currentVideo = video;
                     updateMetadata(reel);
                     if (!isFirstVideo) {
-                        video.play().catch(() => {});
+                        video.play().catch((error) => console.log("Play error:", error));
                     }
+                    console.log("Video can play, muted:", video.muted);
                 });
 
                 video.addEventListener('timeupdate', () => {
@@ -290,11 +293,12 @@
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Video failed to load.</div>';
                 });
 
-                // Touch event to permanently unmute on first video
-                video.addEventListener('touchstart', () => {
+                // Touch event to unmute and play
+                video.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); // Prevent default touch behavior
                     if (!isAudioEnabled) {
-                        setAudioPersistence(); // Permanently unmute and save to LocalStorage
-                        video.play().catch(error => console.log("Play error:", error));
+                        setAudioPersistence();
+                        video.play().catch((error) => console.log("Play error after touch:", error));
                     }
                 });
 
@@ -330,8 +334,8 @@
                 profilePic.src = profileData.profile || "https://i.postimg.cc/3Rh3SjRb/image.jpg";
                 usernameText.innerText = profileData.username;
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
-                profilePic.dataset.id = reel.id; // Store ID for click
-                usernameContainer.dataset.id = reel.id; // Store ID for click
+                profilePic.dataset.id = reel.id;
+                usernameContainer.dataset.id = reel.id;
             }
 
             async function loadCurrentReel() {
@@ -362,7 +366,7 @@
                     clearTimeout(holdTimer);
                     holdTimer = setTimeout(() => {
                         if (isHolding && currentVideo) currentVideo.pause();
-                    }, 1500); // 1.5 seconds
+                    }, 1500);
                 });
 
                 container.addEventListener('touchmove', (e) => {
@@ -399,7 +403,7 @@
                         clearTimeout(holdTimer);
                         holdTimer = setTimeout(() => {
                             if (isHolding && currentVideo) currentVideo.pause();
-                        }, 900); // 1.5 seconds
+                        }, 900);
                     }
                 });
 
@@ -415,7 +419,7 @@
                     if (isFirstVideo && currentVideo) {
                         currentVideo.play().catch(() => {});
                         isFirstVideo = false;
-                        localStorage.setItem('firstVideoPlayed', 'true'); // Persist
+                        localStorage.setItem('firstVideoPlayed', 'true');
                     }
                 });
 
