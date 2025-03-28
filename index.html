@@ -323,7 +323,7 @@
                     clearTimeout(holdTimer);
                     holdTimer = setTimeout(() => {
                         if (isHolding && currentVideo) currentVideo.pause();
-                    }, 1500);
+                    }, 500); // Holding time 500ms
                 });
 
                 container.addEventListener('touchmove', (e) => {
@@ -360,7 +360,7 @@
                         clearTimeout(holdTimer);
                         holdTimer = setTimeout(() => {
                             if (isHolding && currentVideo) currentVideo.pause();
-                        }, 900);
+                        }, 500); // Holding time 500ms
                     }
                 });
 
@@ -373,7 +373,7 @@
                 });
 
                 container.addEventListener('dblclick', (e) => {
-                    showLikeAnimation(container, e);
+                    showLikeAnimation(container, e); // Like wala wapas add
                 });
 
                 container.addEventListener('wheel', (e) => {
