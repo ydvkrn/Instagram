@@ -8,80 +8,174 @@
         body, html {
             margin: 0;
             padding: 0;
-            background-color: #000;
-            color: white;
-            font-family: Arial, sans-serif;
+            background-color: #fafafa;
+            color: #262626;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             overflow-x: hidden;
         }
 
-        .header {
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
             padding: 20px;
-            text-align: center;
-            border-bottom: 1px solid #333;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #dbdbdb;
         }
 
         .profile-pic {
-            width: 80px;
-            height: 80px;
+            width: 150px;
+            height: 150px;
             border-radius: 50%;
-            border: 2px solid white;
-            margin-bottom: 10px;
+            border: 3px solid #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-right: 40px;
+        }
+
+        .profile-info {
+            flex: 1;
         }
 
         .name {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 5px 0;
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0;
         }
 
         .username {
-            font-size: 16px;
-            opacity: 0.7;
+            font-size: 18px;
+            color: #8e8e8e;
             margin: 5px 0;
         }
 
         .bio {
-            font-size: 14px;
+            font-size: 16px;
+            line-height: 1.5;
             margin: 10px 0;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
+            color: #262626;
         }
 
-        .reels-catalog {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 10px;
-            padding: 20px;
+        .stats {
+            display: flex;
+            gap: 40px;
+            margin-top: 15px;
         }
 
-        .reel-item {
-            position: relative;
+        .stats span {
+            font-size: 16px;
+        }
+
+        .stats span strong {
+            font-weight: 600;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            border-bottom: 1px solid #dbdbdb;
+            margin-top: 20px;
+        }
+
+        .tab {
+            padding: 10px 0;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #8e8e8e;
             cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .tab.active {
+            color: #262626;
+            border-bottom: 2px solid #262626;
+        }
+
+        .content {
+            margin-top: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .item {
+            position: relative;
             overflow: hidden;
             border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        .reel-item img {
+        .item:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .item img, .item video {
             width: 100%;
-            height: 200px;
+            height: 300px;
             object-fit: cover;
             display: block;
         }
 
-        .reel-item:hover {
-            opacity: 0.9;
+        .item-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .item:hover .item-overlay {
+            opacity: 1;
+        }
+
+        .item-overlay span {
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <img class="profile-pic" id="profile-pic" src="">
-        <div class="name" id="name">Loading...</div>
-        <div class="username" id="username">@loading</div>
-        <div class="bio" id="bio">Loading bio...</div>
+    <div class="container">
+        <div class="header">
+            <img class="profile-pic" id="profile-pic" src="">
+            <div class="profile-info">
+                <h1 class="name" id="name">Loading...</h1>
+                <div class="username" id="username">@loading</div>
+                <div class="bio" id="bio">Loading bio...</div>
+                <div class="stats">
+                    <span><strong id="reels-count">0</strong> Reels</span>
+                    <span><strong id="posts-count">0</strong> Posts</span>
+                </div>
+            </div>
+        </div>
+        <div class="tabs">
+            <div class="tab active" data-tab="posts">Posts</div>
+            <div class="tab" data-tab="reels">Reels</div>
+        </div>
+        <div class="content">
+            <div class="grid" id="posts-grid"></div>
+            <div class="grid" id="reels-grid" style="display: none;"></div>
+        </div>
     </div>
-    <div class="reels-catalog" id="reels-catalog"></div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
@@ -91,7 +185,11 @@
         const name = document.getElementById('name');
         const username = document.getElementById('username');
         const bio = document.getElementById('bio');
-        const reelsCatalog = document.getElementById('reels-catalog');
+        const reelsCount = document.getElementById('reels-count');
+        const postsCount = document.getElementById('posts-count');
+        const postsGrid = document.getElementById('posts-grid');
+        const reelsGrid = document.getElementById('reels-grid');
+        const tabs = document.querySelectorAll('.tab');
 
         async function loadProfileData() {
             try {
@@ -108,6 +206,7 @@
                     name: "Unknown User", 
                     profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg", 
                     bio: "No bio available.", 
+                    posts: [], // Array of image URLs
                     verified: false 
                 };
 
@@ -117,26 +216,61 @@
                 bio.textContent = profile.bio || "No bio available.";
 
                 const userReels = reels.filter(reel => reel.id === profileId);
-                userReels.forEach(reel => {
-                    const reelItem = document.createElement('div');
-                    reelItem.className = 'reel-item';
-                    const thumbnail = document.createElement('img');
-                    thumbnail.src = reel.thumbnail || reel.media; // Use thumbnail if available, else media
-                    reelItem.appendChild(thumbnail);
-                    reelItem.addEventListener('click', () => {
-                        window.open(`player.html?reelId=${reel.reelId}`, '_blank');
-                    });
-                    reelsCatalog.appendChild(reelItem);
-                });
+                reelsCount.textContent = userReels.length;
+                postsCount.textContent = profile.posts ? profile.posts.length : 0;
 
-                if (userReels.length === 0) {
-                    reelsCatalog.innerHTML = '<p style="text-align: center;">No reels available.</p>';
+                // Load Posts (Images)
+                if (profile.posts && profile.posts.length > 0) {
+                    profile.posts.forEach(post => {
+                        const item = document.createElement('div');
+                        item.className = 'item';
+                        const img = document.createElement('img');
+                        img.src = post;
+                        item.appendChild(img);
+                        const overlay = document.createElement('div');
+                        overlay.className = 'item-overlay';
+                        overlay.innerHTML = '<span>Image</span>';
+                        item.appendChild(overlay);
+                        postsGrid.appendChild(item);
+                    });
+                } else {
+                    postsGrid.innerHTML = '<p style="text-align: center; color: #8e8e8e;">No posts available.</p>';
+                }
+
+                // Load Reels (Videos)
+                if (userReels.length > 0) {
+                    userReels.forEach(reel => {
+                        const item = document.createElement('div');
+                        item.className = 'item';
+                        const thumbnail = document.createElement('img');
+                        thumbnail.src = reel.thumbnail || reel.media; // Fallback to media if no thumbnail
+                        item.appendChild(thumbnail);
+                        const overlay = document.createElement('div');
+                        overlay.className = 'item-overlay';
+                        overlay.innerHTML = '<span>Reel</span>';
+                        item.appendChild(overlay);
+                        item.addEventListener('click', () => {
+                            window.open(`player.html?reelId=${reel.reelId}`, '_blank');
+                        });
+                        reelsGrid.appendChild(item);
+                    });
+                } else {
+                    reelsGrid.innerHTML = '<p style="text-align: center; color: #8e8e8e;">No reels available.</p>';
                 }
             } catch (error) {
                 console.error('Error loading profile data:', error);
-                reelsCatalog.innerHTML = '<p style="text-align: center;">Failed to load profile.</p>';
+                postsGrid.innerHTML = '<p style="text-align: center; color: #8e8e8e;">Failed to load profile.</p>';
             }
         }
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                postsGrid.style.display = tab.dataset.tab === 'posts' ? 'grid' : 'none';
+                reelsGrid.style.display = tab.dataset.tab === 'reels' ? 'grid' : 'none';
+            });
+        });
 
         loadProfileData();
     </script>
