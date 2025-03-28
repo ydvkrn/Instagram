@@ -240,23 +240,11 @@
                 loader.style.display = 'block'; // Initially visible
                 div.appendChild(loader);
 
-                let hasStartedPlaying = false;
-
-                video.addEventListener('progress', () => {
-                    const buffered = video.buffered;
-                    if (buffered.length > 0 && video.duration) {
-                        const bufferedEnd = buffered.end(0);
-                        const duration = video.duration;
-                        const bufferedPercent = (bufferedEnd / duration) * 100;
-
-                        if (bufferedPercent >= 30 && !hasStartedPlaying) {
-                            loader.style.display = 'none';
-                            video.play().catch(error => console.log("Play error:", error));
-                            hasStartedPlaying = true;
-                            if (parseInt(video.dataset.index) === currentIndex) {
-                                updateMetadata(reel);
-                            }
-                        }
+                video.addEventListener('canplay', () => {
+                    loader.style.display = 'none';
+                    if (parseInt(video.dataset.index) === currentIndex) {
+                        video.play().catch(error => console.log("Play error:", error));
+                        updateMetadata(reel);
                     }
                 });
 
@@ -307,7 +295,7 @@
                 // Current reel par scroll karo
                 const currentContainer = container.children[currentIndex];
                 if (currentContainer) {
-                    currentContainer.scrollIntoView({ behavior: 'smooth' });
+                    currentContainer.scrollIntoView({ behavior: 'instant' });
                 }
             }
 
@@ -337,7 +325,11 @@
                                 window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
                             }
 
-                            currentIndex = index; // Update current index
+                            if (index !== currentIndex) {
+                                currentIndex = index;
+                            }
+
+                            video.play().catch(error => console.log("Play error:", error));
                         } else if (video !== currentVideo) {
                             video.pause();
                             if (loader) loader.style.display = 'none';
