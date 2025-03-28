@@ -113,14 +113,22 @@
 
         .like-animation {
             position: absolute;
-            width: 120px;
-            height: 120px;
+            width: 150px;
+            height: 150px;
             opacity: 0;
-            transition: opacity 0.9s ease-in-out;
+            transform: scale(0.5);
+            animation: likePop 0.8s ease-out forwards;
+            z-index: 12;
+        }
+
+        @keyframes likePop {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0; transform: scale(1); }
         }
 
         .progress-bar {
-            position: fixed; /* Instagram-style fixed at bottom */
+            position: fixed;
             bottom: 0;
             left: 0;
             height: 4px;
@@ -128,6 +136,41 @@
             width: 0;
             z-index: 11;
             cursor: pointer;
+        }
+
+        .play-trigger {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            color: white;
+            cursor: pointer;
+            z-index: 13;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+            cursor: pointer;
+            z-index: 13;
         }
     </style>
 </head>
@@ -145,6 +188,8 @@
     </div>
     
     <div class="title" id="title" onclick="showFullTitle()">Loading...</div>
+    <div class="play-trigger" id="play-trigger">▶</div>
+    <div class="refresh-btn" id="refresh-btn">⟳</div>
 
     <script>
         let fullTitle = "";
@@ -154,6 +199,7 @@
         let currentIndex = 0;
         let touchStartY = 0;
         let isTransitioning = false;
+        let currentVideo = null;
 
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
@@ -163,6 +209,8 @@
         const usernameText = document.getElementById('username-text');
         const verifyBadge = document.getElementById('verify-badge');
         const title = document.getElementById('title');
+        const playTrigger = document.getElementById('play-trigger');
+        const refreshBtn = document.getElementById('refresh-btn');
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
@@ -210,7 +258,6 @@
             const { profiles, success } = await loadData();
             if (!success) return;
 
-            // Random first video
             currentIndex = initialReelId ? 
                 allReels.findIndex(reel => reel.reelId === initialReelId) : 
                 Math.floor(Math.random() * allReels.length);
@@ -232,7 +279,7 @@
                 video.playsInline = true;
                 video.controls = false;
                 video.muted = !isAudioEnabled;
-                video.loop = false;
+                video.loop = true; // Loop enabled
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
                 video.src = reel.media;
@@ -244,11 +291,12 @@
 
                 const progressBar = document.createElement('div');
                 progressBar.className = 'progress-bar';
-                document.body.appendChild(progressBar); // Fixed to body
+                document.body.appendChild(progressBar);
 
                 video.addEventListener('canplay', () => {
                     loader.style.display = 'none';
-                    video.play().catch(() => {});
+                    currentVideo = video;
+                    playTrigger.style.display = 'block'; // Show trigger initially
                     updateMetadata(reel);
                 });
 
@@ -270,6 +318,7 @@
                         setAudioPersistence();
                         video.muted = false;
                         video.play().catch(() => {});
+                        playTrigger.style.display = 'none';
                     }
                 });
 
@@ -277,12 +326,24 @@
                     showLikeAnimation(div, e);
                 });
 
+                progressBar.addEventListener('mousedown', (e) => {
+                    const rect = progressBar.getBoundingClientRect();
+                    const seek = (e.clientX - rect.left) / rect.width;
+                    video.currentTime = video.duration * seek;
+                });
+
+                progressBar.addEventListener('mousemove', (e) => {
+                    if (e.buttons === 1) { // Dragging
+                        const rect = progressBar.getBoundingClientRect();
+                        const seek = (e.clientX - rect.left) / rect.width;
+                        video.currentTime = video.duration * seek;
+                    }
+                });
+
                 progressBar.addEventListener('click', (e) => {
                     const rect = progressBar.getBoundingClientRect();
-                    const clickX = e.clientX - rect.left;
-                    const progressWidth = rect.width;
-                    const seekPercentage = clickX / progressWidth;
-                    video.currentTime = video.duration * seekPercentage;
+                    const seek = (e.clientX - rect.left) / rect.width;
+                    video.currentTime = video.duration * seek;
                     video.play().catch(() => {});
                 });
 
@@ -306,6 +367,7 @@
 
                 if (currentIndex >= allReels.length) {
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">All reels viewed.</div>';
+                    playTrigger.style.display = 'none';
                     return;
                 }
 
@@ -348,7 +410,6 @@
                     }
                 });
 
-                // Mouse wheel support for desktop testing
                 container.addEventListener('wheel', (e) => {
                     if (isTransitioning) return;
                     e.preventDefault();
@@ -377,16 +438,22 @@
                 const heart = document.createElement('img');
                 heart.src = "https://png.pngtree.com/png-vector/20220428/ourmid/pngtree-smooth-glossy-heart-vector-file-ai-and-png-png-image_4557871.png";
                 heart.className = 'like-animation';
-                heart.style.left = `${event.clientX - 40}px`;
-                heart.style.top = `${event.clientY - 40}px`;
-                heart.style.opacity = 1;
-
+                heart.style.left = `${event.clientX - 75}px`; // Centered
+                heart.style.top = `${event.clientY - 75}px`;
                 container.appendChild(heart);
-                setTimeout(() => {
-                    heart.style.opacity = 0;
-                    container.removeChild(heart);
-                }, 500);
+                setTimeout(() => container.removeChild(heart), 800);
             }
+
+            playTrigger.addEventListener('click', () => {
+                if (currentVideo) {
+                    currentVideo.play().catch(() => {});
+                    playTrigger.style.display = 'none';
+                }
+            });
+
+            refreshBtn.addEventListener('click', () => {
+                window.location.reload(); // Full website refresh
+            });
 
             loadCurrentReel().then(() => enableScrollPlayback());
         }
