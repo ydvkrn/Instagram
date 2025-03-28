@@ -237,22 +237,25 @@
 
                 const loader = document.createElement('div');
                 loader.className = 'video-loader';
+                loader.style.display = 'block'; // Initially visible
                 div.appendChild(loader);
 
-                video.addEventListener('loadstart', () => {
-                    loader.style.display = 'block';
-                });
+                let hasStartedPlaying = false;
 
-                video.addEventListener('loadedmetadata', () => {
-                    loader.style.display = 'none';
-                });
+                video.addEventListener('progress', () => {
+                    const buffered = video.buffered;
+                    if (buffered.length > 0) {
+                        const bufferedEnd = buffered.end(0);
+                        const duration = video.duration || 0;
+                        const bufferedPercent = duration ? (bufferedEnd / duration) * 100 : 0;
 
-                video.addEventListener('waiting', () => {
-                    loader.style.display = 'block';
-                });
-
-                video.addEventListener('playing', () => {
-                    loader.style.display = 'none';
+                        if (bufferedPercent >= 30 && !hasStartedPlaying) {
+                            loader.style.display = 'none';
+                            video.play().catch(error => console.log("Play error:", error));
+                            hasStartedPlaying = true;
+                            updateMetadata(reel);
+                        }
+                    }
                 });
 
                 video.addEventListener('error', () => {
@@ -295,23 +298,17 @@
                 const videoElement = await createVideoElement(reel, currentIndex);
                 container.appendChild(videoElement);
 
-                // Next reel ke liye placeholder agar available ho
-                if (currentIndex + 1 < allReels.length) {
-                    const placeholder = document.createElement('div');
-                    placeholder.className = 'video-container';
-                    container.appendChild(placeholder);
-                }
-
-                // Previous reel ke liye placeholder agar available ho
+                // Placeholders for previous and next reels
                 if (currentIndex > 0) {
-                    const placeholder = document.createElement('div');
-                    placeholder.className = 'video-container';
-                    container.insertBefore(placeholder, container.firstChild);
+                    const prevPlaceholder = document.createElement('div');
+                    prevPlaceholder.className = 'video-container';
+                    container.insertBefore(prevPlaceholder, videoElement);
                 }
-
-                const video = videoElement.querySelector('video');
-                video.play().catch(error => console.log("Initial play error:", error));
-                updateMetadata(reel);
+                if (currentIndex + 1 < allReels.length) {
+                    const nextPlaceholder = document.createElement('div');
+                    nextPlaceholder.className = 'video-container';
+                    container.appendChild(nextPlaceholder);
+                }
             }
 
             function enableScrollPlayback() {
@@ -334,31 +331,15 @@
                             currentVideo = video;
                             video.muted = !isAudioEnabled;
 
-                            const playPromise = video.play();
-                            if (playPromise !== undefined) {
-                                playPromise
-                                    .then(() => {
-                                        if (loader) loader.style.display = 'none';
-                                    })
-                                    .catch(error => {
-                                        console.log("Play error:", error);
-                                        if (loader) loader.style.display = 'none';
-                                    });
-                            }
-
                             const reel = allReels[index];
                             if (reel) {
                                 updateMetadata(reel);
                                 window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
                             }
 
-                            // Scroll direction check karna
-                            if (index > currentIndex && index < allReels.length) {
+                            if (index !== currentIndex) {
                                 currentIndex = index;
-                                loadNextReel('down');
-                            } else if (index < currentIndex && index >= 0) {
-                                currentIndex = index;
-                                loadNextReel('up');
+                                loadCurrentReel().then(() => enableScrollPlayback());
                             }
                         } else if (video !== currentVideo) {
                             video.pause();
@@ -369,35 +350,6 @@
 
                 const containers = document.querySelectorAll(".video-container");
                 containers.forEach(container => observer.observe(container));
-            }
-
-            async function loadNextReel(direction) {
-                container.innerHTML = ''; // Clear all previous content
-
-                // Current reel load karo
-                const currentReel = allReels[currentIndex];
-                const currentVideoElement = await createVideoElement(currentReel, currentIndex);
-                container.appendChild(currentVideoElement);
-
-                // Previous reel ka placeholder agar upar scroll kiya
-                if (currentIndex > 0) {
-                    const prevPlaceholder = document.createElement('div');
-                    prevPlaceholder.className = 'video-container';
-                    container.insertBefore(prevPlaceholder, currentVideoElement);
-                }
-
-                // Next reel ka placeholder agar niche scroll kiya
-                if (currentIndex + 1 < allReels.length) {
-                    const nextPlaceholder = document.createElement('div');
-                    nextPlaceholder.className = 'video-container';
-                    container.appendChild(nextPlaceholder);
-                }
-
-                const video = currentVideoElement.querySelector('video');
-                video.play().catch(error => console.log("Next reel play error:", error));
-                updateMetadata(currentReel);
-
-                enableScrollPlayback();
             }
 
             function showFullTitle() {
