@@ -21,7 +21,7 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow-y: scroll; /* Changed to scroll */
+            overflow-y: scroll;
             scroll-snap-type: y mandatory;
             -webkit-overflow-scrolling: touch;
         }
@@ -124,38 +124,13 @@
 
         .progress-bar {
             position: absolute;
-            top: 0;
+            bottom: 0; /* Moved to bottom */
             left: 0;
-            height: 3px;
+            height: 5px; /* Slightly thicker for clickability */
             background: #fff;
             width: 0;
             z-index: 11;
-        }
-
-        .error-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px 20px;
-            border-radius: 5px;
-            display: none;
-            z-index: 12;
-        }
-
-        .refresh-btn {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            border-radius: 50%;
             cursor: pointer;
-            z-index: 13;
         }
     </style>
 </head>
@@ -173,7 +148,6 @@
     </div>
     
     <div class="title" id="title" onclick="showFullTitle()">Loading...</div>
-    <button class="refresh-btn" onclick="refreshReels()">⟳</button>
 
     <script>
         let fullTitle = "";
@@ -181,7 +155,6 @@
         const AUDIO_PERSISTENCE_DURATION = 30 * 60 * 1000;
         let allReels = [];
         let currentIndex = 0;
-        let viewedReels = [];
         let touchStartY = 0;
         let loadedVideos = new Map();
 
@@ -212,15 +185,6 @@
             localStorage.removeItem('audioTimestamp');
         }
 
-        function getRandomReel(excludeIndex) {
-            let availableReels = allReels.filter((_, idx) => !viewedReels.includes(idx) && idx !== excludeIndex);
-            if (availableReels.length === 0) {
-                return -1;
-            }
-            const randomIdx = Math.floor(Math.random() * availableReels.length);
-            return allReels.indexOf(availableReels[randomIdx]);
-        }
-
         async function loadData() {
             try {
                 const [profilesResponse, reelsResponse] = await Promise.all([
@@ -236,6 +200,9 @@
                     return { profiles, success: false };
                 }
 
+                // Sort reels by reelId for sequential playback
+                allReels.sort((a, b) => a.reelId.localeCompare(b.reelId));
+
                 return { profiles, success: true };
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -250,11 +217,10 @@
 
             if (initialReelId) {
                 currentIndex = allReels.findIndex(reel => reel.reelId === initialReelId);
-                if (currentIndex === -1) currentIndex = getRandomReel(-1);
+                if (currentIndex === -1) currentIndex = 0;
             } else {
-                currentIndex = getRandomReel(-1);
+                currentIndex = 0;
             }
-            viewedReels.push(currentIndex);
 
             function getProfileById(id) {
                 return profiles.find(profile => profile.id === id) || { 
@@ -290,10 +256,6 @@
                 progressBar.className = 'progress-bar';
                 div.appendChild(progressBar);
 
-                const errorMessage = document.createElement('div');
-                errorMessage.className = 'error-message';
-                div.appendChild(errorMessage);
-
                 video.addEventListener('canplay', () => {
                     loader.style.display = 'none';
                 });
@@ -307,7 +269,6 @@
 
                 video.addEventListener('error', () => {
                     loader.style.display = 'none';
-                    showError('Video failed to load', div);
                 });
 
                 video.addEventListener('click', () => {
@@ -321,6 +282,15 @@
 
                 video.addEventListener('dblclick', (e) => {
                     showLikeAnimation(div, e);
+                });
+
+                progressBar.addEventListener('click', (e) => {
+                    const rect = progressBar.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const progressWidth = rect.width;
+                    const seekPercentage = clickX / progressWidth;
+                    video.currentTime = video.duration * seekPercentage;
+                    video.play().catch(() => {});
                 });
 
                 div.appendChild(video);
@@ -344,6 +314,8 @@
                     const videoElement = await createVideoElement(reel, i);
                     container.appendChild(videoElement);
                 }
+                // Scroll to initial index
+                container.scrollTo({ top: currentIndex * window.innerHeight, behavior: 'auto' });
             }
 
             function enableScrollPlayback() {
@@ -373,6 +345,7 @@
                                 window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
                             }
 
+                            currentIndex = index; // Update currentIndex
                             video.currentTime = 0;
                             video.play().catch(() => {});
                             if (progressBar) progressBar.style.display = 'block';
@@ -391,13 +364,10 @@
                 container.addEventListener('touchend', (e) => {
                     const touchEndY = e.changedTouches[0].clientY;
                     const swipeDistance = touchStartY - touchEndY;
-                    if (swipeDistance > 50) {
-                        const nextIndex = getRandomReel(currentIndex);
-                        if (nextIndex !== -1) {
-                            currentIndex = nextIndex;
-                            viewedReels.push(currentIndex);
-                            container.scrollTo({ top: currentIndex * window.innerHeight, behavior: 'smooth' });
-                        }
+                    if (swipeDistance > 50 && currentIndex < allReels.length - 1) {
+                        container.scrollTo({ top: (currentIndex + 1) * window.innerHeight, behavior: 'smooth' });
+                    } else if (swipeDistance < -50 && currentIndex > 0) {
+                        container.scrollTo({ top: (currentIndex - 1) * window.innerHeight, behavior: 'smooth' });
                     }
                 });
 
@@ -422,25 +392,6 @@
                     heart.style.opacity = 0;
                     container.removeChild(heart);
                 }, 500);
-            }
-
-            function showError(message, container) {
-                const errorDiv = container.querySelector('.error-message');
-                if (errorDiv) {
-                    errorDiv.textContent = message;
-                    errorDiv.style.display = 'block';
-                    setTimeout(() => {
-                        errorDiv.style.display = 'none';
-                    }, 3000);
-                }
-            }
-
-            function refreshReels() {
-                viewedReels = [];
-                loadedVideos.clear();
-                currentIndex = getRandomReel(-1);
-                viewedReels.push(currentIndex);
-                loadReels().then(() => enableScrollPlayback());
             }
 
             loadReels().then(() => enableScrollPlayback());
