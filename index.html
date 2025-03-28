@@ -146,6 +146,7 @@
         const CACHE_NAME = 'reels-cache-v1';
         let allReels = [];
         let currentIndex = 0;
+        let viewedReels = [];
 
         // URL se reelId extract karna
         const urlParams = new URLSearchParams(window.location.search);
@@ -193,6 +194,16 @@
         const verifyBadge = document.getElementById('verify-badge');
         const title = document.getElementById('title');
 
+        function getRandomReel(excludeIndex) {
+            let availableReels = allReels.filter((_, idx) => !viewedReels.includes(idx) && idx !== excludeIndex);
+            if (availableReels.length === 0) {
+                viewedReels = []; // Reset viewed reels if all are seen
+                availableReels = allReels.filter((_, idx) => idx !== excludeIndex);
+            }
+            const randomIdx = Math.floor(Math.random() * availableReels.length);
+            return allReels.indexOf(availableReels[randomIdx]);
+        }
+
         Promise.all([
             fetch('profiles.json').then(res => res.ok ? res.json() : ({ profiles: [] })).catch(() => ({ profiles: [] })),
             fetch('reels.json').then(res => res.ok ? res.json() : ({ reels: [] })).catch(() => ({ reels: [] }))
@@ -209,8 +220,11 @@
             // Initial reel set karna
             if (initialReelId) {
                 currentIndex = allReels.findIndex(reel => reel.reelId === initialReelId);
-                if (currentIndex === -1) currentIndex = 0;
+                if (currentIndex === -1) currentIndex = getRandomReel(-1);
+            } else {
+                currentIndex = getRandomReel(-1);
             }
+            viewedReels.push(currentIndex);
 
             function getProfileById(id) {
                 return profiles.find(profile => profile.id === id) || { 
@@ -242,10 +256,8 @@
 
                 video.addEventListener('canplay', () => {
                     loader.style.display = 'none';
-                    if (parseInt(video.dataset.index) === currentIndex) {
-                        video.play().catch(error => console.log("Play error:", error));
-                        updateMetadata(reel);
-                    }
+                    video.play().catch(error => console.log("Play error:", error));
+                    updateMetadata(reel);
                 });
 
                 video.addEventListener('error', () => {
@@ -282,25 +294,39 @@
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
             }
 
-            async function loadReels() {
+            async function loadCurrentReel() {
                 container.innerHTML = ''; // Clear previous content
+                const reel = allReels[currentIndex];
+                const videoElement = await createVideoElement(reel, currentIndex);
+                container.appendChild(videoElement);
 
-                // Saare reels ke liye video elements banao
-                for (let i = 0; i < allReels.length; i++) {
-                    const reel = allReels[i];
-                    const videoElement = await createVideoElement(reel, i);
-                    container.appendChild(videoElement);
-                }
-
-                // Current reel par scroll karo
-                const currentContainer = container.children[currentIndex];
-                if (currentContainer) {
-                    currentContainer.scrollIntoView({ behavior: 'instant' });
-                }
+                // Placeholder for next reel
+                const nextPlaceholder = document.createElement('div');
+                nextPlaceholder.className = 'video-container';
+                container.appendChild(nextPlaceholder);
             }
 
             function enableScrollPlayback() {
                 let currentVideo = null;
+                let lastScrollTop = 0;
+
+                container.addEventListener('scroll', () => {
+                    const scrollTop = container.scrollTop;
+                    const direction = scrollTop > lastScrollTop ? 'down' : 'up';
+                    lastScrollTop = scrollTop;
+
+                    const videoContainers = document.querySelectorAll('.video-container');
+                    const currentContainer = videoContainers[0]; // First is current reel
+                    const nextContainer = videoContainers[1]; // Second is placeholder
+
+                    if (direction === 'down' && nextContainer && nextContainer.getBoundingClientRect().top <= window.innerHeight * 0.7) {
+                        // Scrolled to next placeholder
+                        currentIndex = getRandomReel(currentIndex);
+                        viewedReels.push(currentIndex);
+                        loadCurrentReel();
+                    }
+                });
+
                 const observer = new IntersectionObserver((entries) => {
                     entries.forEach(entry => {
                         const video = entry.target.querySelector('video');
@@ -311,7 +337,6 @@
                         const index = parseInt(video.dataset.index);
 
                         if (entry.isIntersecting) {
-                            // Pause all other videos
                             document.querySelectorAll('video').forEach(v => {
                                 if (v !== video) v.pause();
                             });
@@ -323,10 +348,6 @@
                             if (reel) {
                                 updateMetadata(reel);
                                 window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
-                            }
-
-                            if (index !== currentIndex) {
-                                currentIndex = index;
                             }
 
                             video.play().catch(error => console.log("Play error:", error));
@@ -361,7 +382,7 @@
             }
 
             // Initial load
-            loadReels().then(() => enableScrollPlayback());
+            loadCurrentReel().then(() => enableScrollPlayback());
         })
         .catch(error => {
             console.error('Error loading data:', error);
