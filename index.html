@@ -155,23 +155,6 @@
             cursor: pointer;
             z-index: 13;
         }
-
-        .refresh-btn {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            width: 40px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            color: white;
-            cursor: pointer;
-            z-index: 13;
-        }
     </style>
 </head>
 <body>
@@ -189,7 +172,6 @@
     
     <div class="title" id="title" onclick="showFullTitle()">Loading...</div>
     <div class="play-trigger" id="play-trigger">▶</div>
-    <div class="refresh-btn" id="refresh-btn">⟳</div>
 
     <script>
         let fullTitle = "";
@@ -200,6 +182,7 @@
         let touchStartY = 0;
         let isTransitioning = false;
         let currentVideo = null;
+        let isFirstVideo = true; // Track first video
 
         const urlParams = new URLSearchParams(window.location.search);
         const initialReelId = urlParams.get('reelId') || null;
@@ -210,7 +193,6 @@
         const verifyBadge = document.getElementById('verify-badge');
         const title = document.getElementById('title');
         const playTrigger = document.getElementById('play-trigger');
-        const refreshBtn = document.getElementById('refresh-btn');
 
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
@@ -242,6 +224,7 @@
 
                 if (allReels.length === 0) {
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No reels available.</div>';
+                    playTrigger.style.display = 'none';
                     return { profiles, success: false };
                 }
 
@@ -250,6 +233,7 @@
             } catch (error) {
                 console.error('Error loading data:', error);
                 container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels.</div>';
+                playTrigger.style.display = 'none';
                 return { profiles: [], success: false };
             }
         }
@@ -279,7 +263,7 @@
                 video.playsInline = true;
                 video.controls = false;
                 video.muted = !isAudioEnabled;
-                video.loop = true; // Loop enabled
+                video.loop = true;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
                 video.src = reel.media;
@@ -296,8 +280,12 @@
                 video.addEventListener('canplay', () => {
                     loader.style.display = 'none';
                     currentVideo = video;
-                    playTrigger.style.display = 'block'; // Show trigger initially
                     updateMetadata(reel);
+                    if (!isFirstVideo) {
+                        video.play().catch(() => {});
+                    } else {
+                        playTrigger.style.display = 'block'; // Only for first video
+                    }
                 });
 
                 video.addEventListener('timeupdate', () => {
@@ -318,7 +306,10 @@
                         setAudioPersistence();
                         video.muted = false;
                         video.play().catch(() => {});
-                        playTrigger.style.display = 'none';
+                        if (isFirstVideo) {
+                            playTrigger.style.display = 'none';
+                            isFirstVideo = false;
+                        }
                     }
                 });
 
@@ -333,7 +324,7 @@
                 });
 
                 progressBar.addEventListener('mousemove', (e) => {
-                    if (e.buttons === 1) { // Dragging
+                    if (e.buttons === 1) {
                         const rect = progressBar.getBoundingClientRect();
                         const seek = (e.clientX - rect.left) / rect.width;
                         video.currentTime = video.duration * seek;
@@ -438,21 +429,18 @@
                 const heart = document.createElement('img');
                 heart.src = "https://png.pngtree.com/png-vector/20220428/ourmid/pngtree-smooth-glossy-heart-vector-file-ai-and-png-png-image_4557871.png";
                 heart.className = 'like-animation';
-                heart.style.left = `${event.clientX - 75}px`; // Centered
+                heart.style.left = `${event.clientX - 75}px`;
                 heart.style.top = `${event.clientY - 75}px`;
                 container.appendChild(heart);
                 setTimeout(() => container.removeChild(heart), 800);
             }
 
             playTrigger.addEventListener('click', () => {
-                if (currentVideo) {
+                if (currentVideo && isFirstVideo) {
                     currentVideo.play().catch(() => {});
                     playTrigger.style.display = 'none';
+                    isFirstVideo = false;
                 }
-            });
-
-            refreshBtn.addEventListener('click', () => {
-                window.location.reload(); // Full website refresh
             });
 
             loadCurrentReel().then(() => enableScrollPlayback());
