@@ -23,25 +23,24 @@ function getProfileById(id) {
     };
 }
 
-function loadReel(index) {
+async function loadReel(index) {
     if (index < 0 || index >= allReels.length) {
         console.warn('Index out of bounds:', index);
         return;
     }
 
-    container.innerHTML = '';
+    container.innerHTML = '<div id="loading" style="color: white; text-align: center; padding-top: 50%;">Loading...</div>';
     const existingProgress = document.querySelector('.progress-bar');
     if (existingProgress) existingProgress.remove();
 
     const reel = allReels[index];
-    const videoElement = createVideoElement(reel, index);
-    container.appendChild(videoElement);
-    
-    currentVideo = videoElement.querySelector('video');
-    currentVideo.play().catch((error) => console.log(`Initial play error for ${reel.media}:`, error));
-    updateMetadata(reel);
-
-    window.history.pushState({}, document.title, `/Instagram/?reelId=${allReels[index].reelId}`);
+    const videoElement = await createVideoElement(reel, index);
+    if (videoElement) {
+        container.innerHTML = ''; // Clear loading
+        container.appendChild(videoElement);
+        currentVideo = videoElement.querySelector('video');
+        window.history.pushState({}, document.title, `/Instagram/?reelId=${allReels[index].reelId}`);
+    }
 }
 
 function nextReel() {
