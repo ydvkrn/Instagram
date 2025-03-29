@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Reel Of The Day</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        #reels-container {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+            background-color: #000;
+        }
+
+        .video-container {
+            position: absolute;
+            width: 100%;
+            height: 100vh;
+            top: 0;
+            left: 0;
+            background-color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+            background-color: #000;
+        }
+
+        .fixed-overlay {
+            position: fixed;
+            bottom: 80px;
+            left: 15px;
+            width: calc(100% - 30px);
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: transparent;
+            z-index: 10;
+        }
+
+        .profile-pic {
+            width: 45px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid white;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .user-info {
+            margin-left: 10px;
+            color: white;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .username {
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+
+        .verify-badge {
+            width: 16px;
+            height: 16px;
+            margin-left: 5px;
+        }
+
+        .title {
+            font-size: 14px;
+            opacity: 0.9;
+            position: fixed;
+            bottom: 40px;
+            left: 15px;
+            width: calc(100% - 30px);
+            color: white;
+            padding: 5px 10px;
+            background: transparent;
+            border-radius: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.8);
+            width: 0;
+            z-index: 11;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: height 0.2s;
+        }
+
+        .progress-bar.highlighted {
+            height: 8px;
+            background: rgba(255, 255, 255, 1);
+        }
+
+        body {
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+        }
+
+        .like-animation {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            opacity: 0;
+            z-index: 12;
+            pointer-events: none;
+            animation: popBounce 0.5s ease-out forwards;
+        }
+
+        @keyframes popBounce {
+            0% { opacity: 0; transform: scale(0); }
+            50% { opacity: 1; transform: scale(1.3); }
+            75% { opacity: 0.9; transform: scale(1.1); }
+            100% { opacity: 0; transform: scale(1); }
+        }
+
+        .top-right-logo {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            z-index: 10;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+    <div id="reels-container"></div>
+    
+    <div class="fixed-overlay">
+        <img class="profile-pic" id="profile-pic" src="">
+        <div class="user-info">
+            <div class="username" id="username">
+                <span id="username-text">Loading...</span>
+                <img class="verify-badge" id="verify-badge" src="https://i.postimg.cc/28DChkBZ/1000062918-removebg-preview-min.png">
+            </div>
+        </div>
+    </div>
+    
+    <div class="title" id="title" onclick="showFullTitle()">Loading...</div>
+    
+    <img class="top-right-logo" src="https://i.postimg.cc/X77btM3F/20250328-151255.png" alt="Logo">
+
+    <script>
+        let fullTitle = "";
+        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false;
+        let allReels = [];
+        let currentIndex = 0;
+        let touchStartY = 0;
+        let isTransitioning = false;
+        let currentVideo = null;
+        let holdTimer = null;
+        let likes = new Map();
+        let lastTap = 0;
+        let isScrubbing = false;
+        let touchStartX = 0;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialReelId = urlParams.get('reelId') || null;
+
+        const container = document.getElementById('reels-container');
+        const profilePic = document.getElementById('profile-pic');
+        const usernameText = document.getElementById('username-text');
+        const usernameContainer = document.getElementById('username');
+        const verifyBadge = document.getElementById('verify-badge');
+        const title = document.getElementById('title');
+
+        function setAudioPersistence() {
+            localStorage.setItem('audioEnabled', 'true');
+            isAudioEnabled = true;
+            if (currentVideo) {
+                currentVideo.muted = false;
+                currentVideo.play().catch((error) => console.log("Play error:", error));
+            }
+        }
+
+        async function checkUrlValidity(url) {
+            try {
+                const response = await fetch(url, { method: 'HEAD' });
+                return response.ok;
+            } catch (error) {
+                console.log(`URL check failed: ${url}`, error);
+                return false;
+            }
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]]; // Fixed syntax error
+            }
+            return array;
+        }
+
+        async function loadMetadata() {
+            try {
+                console.log("Attempting to fetch JSON files...");
+                const [profilesResponse, reelsResponse] = await Promise.all([
+                    fetch('./profiles.json'), // Update this path if needed
+                    fetch('./reels.json')     // Update this path if needed
+                ]);
+
+                if (!profilesResponse.ok) {
+                    throw new Error(`Profiles fetch failed: ${profilesResponse.status} - ${profilesResponse.statusText}`);
+                }
+                if (!reelsResponse.ok) {
+                    throw new Error(`Reels fetch failed: ${reelsResponse.status} - ${reelsResponse.statusText}`);
+                }
+
+                const profilesData = await profilesResponse.json();
+                const reelsData = await reelsResponse.json();
+
+                console.log('Profiles data:', profilesData);
+                console.log('Reels data:', reelsData);
+
+                // Validate JSON structure
+                if (!profilesData.profiles || !Array.isArray(profilesData.profiles)) {
+                    throw new Error('Invalid profiles data: "profiles" must be an array');
+                }
+                if (!reelsData.reels || !Array.isArray(reelsData.reels)) {
+                    throw new Error('Invalid reels data: "reels" must be an array');
+                }
+
+                const profiles = profilesData.profiles;
+                allReels = shuffleArray(reelsData.reels);
+
+                if (allReels.length === 0) {
+                    throw new Error('Reels array is empty');
+                }
+
+                allReels.forEach(reel => {
+                    if (!reel.reelId || !reel.id || !reel.media || !reel.title) {
+                        console.warn('Invalid reel data:', reel);
+                    }
+                    if (!likes.has(reel.reelId)) {
+                        likes.set(reel.reelId, { count: 0, liked: false });
+                    }
+                });
+
+                console.log("Metadata loaded successfully");
+                return { profiles, success: true };
+            } catch (error) {
+                console.error('Error in loadMetadata:', error.message);
+                container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels. Retrying...</div>';
+                setTimeout(loadMetadata, 2000);
+                return { profiles: [], success: false };
+            }
+        }
+
+        async function initialize() {
+            console.log("Starting initialization...");
+            const { profiles, success } = await loadMetadata();
+            if (!success) {
+                console.error('Initialization failed: Metadata loading unsuccessful');
+                return;
+            }
+
+            currentIndex = initialReelId ? 
+                allReels.findIndex(reel => reel.reelId === initialReelId) : 
+                0;
+            if (currentIndex === -1) currentIndex = 0;
+
+            console.log('Initial index:', currentIndex);
+            console.log('All reels:', allReels);
+
+            function getProfileById(id) {
+                return profiles.find(profile => profile.id === id) || { 
+                    username: "bot", 
+                    profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg", 
+                    verified: true
+                };
+            }
+
+            async function loadVideoUrl(reel) {
+                console.log(`Checking video URL: ${reel.media}`);
+                const isValid = await checkUrlValidity(reel.media);
+                console.log(`Video URL ${reel.media} is ${isValid ? 'valid' : 'invalid'}`);
+                return isValid ? reel.media : null;
+            }
+
+            function createVideoElement(reel, index, videoUrl) {
+                console.log(`Creating video element for reel ${reel.reelId}`);
+                const div = document.createElement('div');
+                div.className = 'video-container';
+
+                const video = document.createElement('video');
+                video.playsInline = true;
+                video.controls = false;
+                video.muted = !isAudioEnabled;
+                video.dataset.index = index;
+                video.dataset.title = reel.title;
+                video.src = videoUrl;
+                video.preload = 'auto';
+                video.setAttribute('playsinline', '');
+                video.setAttribute('webkit-playsinline', '');
+                video.type = 'video/mp4';
+
+                const progressBar = document.createElement('div');
+                progressBar.className = 'progress-bar';
+                document.body.appendChild(progressBar);
+
+                video.addEventListener('canplay', () => {
+                    console.log(`Video can play: ${reel.media}`);
+                    currentVideo = video;
+                    updateMetadata(reel);
+                    video.play().catch((error) => console.log("Play error:", error));
+                });
+
+                video.addEventListener('timeupdate', () => {
+                    if (!video.paused && !isScrubbing) {
+                        const progress = (video.currentTime / video.duration) * 100;
+                        progressBar.style.width = `${progress}%`;
+                    }
+                });
+
+                video.addEventListener('ended', () => {
+                    console.log(`Video ended: ${reel.media}`);
+                    video.currentTime = 0;
+                    video.play().catch((error) => console.log(`Loop play error for ${reel.media}:`, error));
+                });
+
+                video.addEventListener('error', (e) => {
+                    console.error(`Video error for ${reel.media}:`, e.message);
+                    nextReel();
+                });
+
+                video.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    if (!isAudioEnabled) {
+                        setAudioPersistence();
+                    } else if (currentVideo.paused) {
+                        currentVideo.play().catch((error) => console.log("Play error:", error));
+                    }
+                });
+
+                div.appendChild(video);
+                return div;
+            }
+
+            function setupProgressBarListeners() {
+                document.body.addEventListener('click', (e) => {
+                    const progressBar = document.querySelector('.progress-bar');
+                    if (e.target === progressBar && currentVideo) {
+                        const rect = progressBar.getBoundingClientRect();
+                        const clickX = e.clientX - rect.left;
+                        const progressWidth = rect.width;
+                        const clickPercentage = clickX / progressWidth;
+                        currentVideo.currentTime = clickPercentage * currentVideo.duration;
+                    }
+                });
+
+                document.body.addEventListener('touchstart', (e) => {
+                    const progressBar = document.querySelector('.progress-bar');
+                    if (e.target === progressBar && currentVideo) {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        const rect = progressBar.getBoundingClientRect();
+                        const touchX = touch.clientX - rect.left;
+                        const progressWidth = rect.width;
+                        const touchPercentage = touchX / progressWidth;
+                        currentVideo.currentTime = touchPercentage * currentVideo.duration;
+                    }
+                });
+            }
+
+            function updateMetadata(reel) {
+                console.log(`Updating metadata for reel ${reel.reelId}`);
+                fullTitle = reel.title || 'Untitled';
+                title.innerText = fullTitle;
+                const profileData = getProfileById(reel.id);
+                profilePic.src = profileData.profile || "https://i.postimg.cc/3Rh3SjRb/image.jpg";
+                usernameText.innerText = profileData.username || "Unknown";
+                verifyBadge.style.display = profileData.verified ? "inline" : "none";
+                profilePic.dataset.id = reel.id;
+                usernameContainer.dataset.id = reel.id;
+                console.log('Metadata updated:', { title: fullTitle, username: profileData.username });
+            }
+
+            function showLikeAnimation(x, y) {
+                const likeImg = document.createElement('img');
+                likeImg.src = 'https://i.postimg.cc/pr68HrJm/1000063176-removebg-preview.png';
+                likeImg.className = 'like-animation';
+                likeImg.style.left = `${x}px`;
+                likeImg.style.top = `${y}px`;
+                container.appendChild(likeImg);
+                setTimeout(() => likeImg.remove(), 500);
+            }
+
+            async function loadReel(index) {
+                console.log(`Loading reel at index ${index}`);
+                if (index < 0 || index >= allReels.length) {
+                    console.warn('Index out of bounds:', index);
+                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No more reels available.</div>';
+                    return;
+                }
+
+                if (currentVideo) {
+                    currentVideo.pause();
+                    currentVideo.muted = true;
+                }
+
+                container.innerHTML = '';
+                const existingProgress = document.querySelector('.progress-bar');
+                if (existingProgress) existingProgress.remove();
+
+                const reel = allReels[index];
+                const videoUrl = await loadVideoUrl(reel);
+                if (!videoUrl) {
+                    console.warn(`Invalid video URL for reel ${reel.reelId}, skipping to next`);
+                    if (index + 1 < allReels.length) {
+                        nextReel();
+                    } else {
+                        container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No valid reels available.</div>';
+                    }
+                    return;
+                }
+
+                const videoElement = createVideoElement(reel, index, videoUrl);
+                container.appendChild(videoElement);
+                
+                currentVideo = videoElement.querySelector('video');
+                console.log(`Loading reel ${reel.reelId} at index ${index}`);
+                currentVideo.play().catch((error) => console.log(`Initial play error for ${reel.media}:`, error));
+                updateMetadata(reel);
+
+                window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
+            }
+
+            function nextReel() {
+                if (currentIndex + 1 < allReels.length) {
+                    currentIndex++;
+                    loadReel(currentIndex);
+                }
+            }
+
+            function prevReel() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    loadReel(currentIndex);
+                }
+            }
+
+            function enableScrollPlayback() {
+                let touchMoveY = 0;
+                let isHolding = false;
+
+                container.addEventListener('touchstart', (e) => {
+                    touchStartY = e.touches[0].clientY;
+                    touchStartX = e.touches[0].clientX;
+                    touchMoveY = touchStartY;
+                    isHolding = true;
+                    clearTimeout(holdTimer);
+                    holdTimer = setTimeout(() => {
+                        if (isHolding && currentVideo) {
+                            currentVideo.pause();
+                            isScrubbing = true;
+                            const progressBar = document.querySelector('.progress-bar');
+                            if (progressBar) progressBar.classList.add('highlighted');
+                        }
+                    }, 500);
+                });
+
+                container.addEventListener('touchmove', (e) => {
+                    touchMoveY = e.touches[0].clientY;
+                    if (isScrubbing && currentVideo) {
+                        const touchX = e.touches[0].clientX;
+                        const deltaX = touchX - touchStartX;
+                        const screenWidth = window.innerWidth;
+                        const progressChange = deltaX / (screenWidth * 3);
+                        const newTime = Math.max(0, Math.min(currentVideo.duration, 
+                            currentVideo.currentTime + (progressChange * currentVideo.duration)));
+                        currentVideo.currentTime = newTime;
+                        const progress = (newTime / currentVideo.duration) * 100;
+                        const progressBar = document.querySelector('.progress-bar');
+                        if (progressBar) progressBar.style.width = `${progress}%`;
+                    }
+                });
+
+                container.addEventListener('touchend', (e) => {
+                    if (isTransitioning) return;
+                    const touchEndY = e.changedTouches[0].clientY;
+                    const swipeDistance = touchStartY - touchEndY;
+
+                    clearTimeout(holdTimer);
+                    const progressBar = document.querySelector('.progress-bar');
+                    if (progressB
