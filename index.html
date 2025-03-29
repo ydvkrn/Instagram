@@ -205,36 +205,43 @@
 
         async function checkUrlValidity(url) {
             try {
-                const response = await fetch(url, { 
-                    method: 'HEAD', 
-                    mode: 'no-cors'
-                });
-                return true;
+                const response = await fetch(url, { method: 'HEAD' });
+                return response.ok;
             } catch (error) {
-                console.log(`URL invalid or inaccessible: ${url}`, error);
+                console.log(`URL check failed: ${url}`, error);
                 return false;
             }
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
         }
 
         async function loadMetadata() {
             try {
                 const [profilesResponse, reelsResponse] = await Promise.all([
-                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json').then(res => {
-                        if (!res.ok) throw new Error('Profiles fetch failed');
-                        return res.json();
-                    }),
-                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json').then(res => {
-                        if (!res.ok) throw new Error('Reels fetch failed');
-                        return res.json();
-                    })
+                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json'),
+                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json')
                 ]);
 
-                const profiles = profilesResponse.profiles || [];
-                allReels = reelsResponse.reels || [];
+                if (!profilesResponse.ok) throw new Error(`Profiles fetch failed: ${profilesResponse.status}`);
+                if (!reelsResponse.ok) throw new Error(`Reels fetch failed: ${reelsResponse.status}`);
 
-                if (allReels.length === 0) {
-                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No reels available.</div>';
-                    return { profiles, success: false };
+                const profilesData = await profilesResponse.json();
+                const reelsData = await reelsResponse.json();
+
+                console.log('Profiles data:', profilesData);
+                console.log('Reels data:', reelsData);
+
+                const profiles = profilesData.profiles || [];
+                allReels = shuffleArray(reelsData.reels || []);
+
+                if (!Array.isArray(allReels) || allReels.length === 0) {
+                    throw new Error('Reels data is empty or not an array');
                 }
 
                 allReels.forEach(reel => {
@@ -245,21 +252,27 @@
 
                 return { profiles, success: true };
             } catch (error) {
-                console.error('Error loading metadata:', error);
-                container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Loading failed. Retrying...</div>';
-                setTimeout(() => loadMetadata(), 2000);
+                console.error('Error in loadMetadata:', error);
+                container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Failed to load reels. Retrying...</div>';
+                setTimeout(loadMetadata, 2000);
                 return { profiles: [], success: false };
             }
         }
 
         async function initialize() {
             const { profiles, success } = await loadMetadata();
-            if (!success) return;
+            if (!success) {
+                console.error('Initialization failed: Metadata loading unsuccessful');
+                return;
+            }
 
             currentIndex = initialReelId ? 
                 allReels.findIndex(reel => reel.reelId === initialReelId) : 
                 0;
             if (currentIndex === -1) currentIndex = 0;
+
+            console.log('Initial index:', currentIndex);
+            console.log('All reels:', allReels);
 
             function getProfileById(id) {
                 return profiles.find(profile => profile.id === id) || { 
@@ -270,8 +283,8 @@
             }
 
             async function loadVideoUrl(reel) {
-                // Simulate DRM protection by not exposing direct URL
                 const isValid = await checkUrlValidity(reel.media);
+                console.log(`Video URL ${reel.media} is ${isValid ? 'valid' : 'invalid'}`);
                 return isValid ? reel.media : null;
             }
 
@@ -285,7 +298,7 @@
                 video.muted = !isAudioEnabled;
                 video.dataset.index = index;
                 video.dataset.title = reel.title;
-                video.src = videoUrl; // Use protected URL
+                video.src = videoUrl;
                 video.preload = 'auto';
                 video.setAttribute('playsinline', '');
                 video.setAttribute('webkit-playsinline', '');
@@ -316,7 +329,7 @@
                 });
 
                 video.addEventListener('error', (e) => {
-                    console.error(`Error loading video ${reel.media}:`, e.message);
+                    console.error(`Video error for ${reel.media}:`, e.message);
                     nextReel();
                 });
 
@@ -354,14 +367,15 @@
             }
 
             function updateMetadata(reel) {
-                fullTitle = reel.title;
-                title.innerText = reel.title;
+                fullTitle = reel.title || 'Untitled';
+                title.innerText = fullTitle;
                 const profileData = getProfileById(reel.id);
                 profilePic.src = profileData.profile || "https://i.postimg.cc/3Rh3SjRb/image.jpg";
-                usernameText.innerText = profileData.username;
+                usernameText.innerText = profileData.username || "Unknown";
                 verifyBadge.style.display = profileData.verified ? "inline" : "none";
                 profilePic.dataset.id = reel.id;
                 usernameContainer.dataset.id = reel.id;
+                console.log('Metadata updated:', { title: fullTitle, username: profileData.username });
             }
 
             function showLikeAnimation(x, y) {
@@ -392,6 +406,7 @@
                 const reel = allReels[index];
                 const videoUrl = await loadVideoUrl(reel);
                 if (!videoUrl) {
+                    console.warn(`Invalid video URL for reel ${reel.reelId}, skipping to next`);
                     nextReel();
                     return;
                 }
@@ -400,10 +415,11 @@
                 container.appendChild(videoElement);
                 
                 currentVideo = videoElement.querySelector('video');
+                console.log(`Loading reel ${reel.reelId} at index ${index}`);
                 currentVideo.play().catch((error) => console.log(`Initial play error for ${reel.media}:`, error));
                 updateMetadata(reel);
 
-                window.history.pushState({}, document.title, `/Instagram/?reelId=${allReels[index].reelId}`);
+                window.history.pushState({}, document.title, `/Instagram/?reelId=${reel.reelId}`);
             }
 
             function nextReel() {
@@ -436,9 +452,7 @@
                             currentVideo.pause();
                             isScrubbing = true;
                             const progressBar = document.querySelector('.progress-bar');
-                            if (progressBar) {
-                                progressBar.classList.add('highlighted');
-                            }
+                            if (progressBar) progressBar.classList.add('highlighted');
                         }
                     }, 500);
                 });
@@ -449,15 +463,13 @@
                         const touchX = e.touches[0].clientX;
                         const deltaX = touchX - touchStartX;
                         const screenWidth = window.innerWidth;
-                        const progressChange = deltaX / (screenWidth * 3); // Slower scrubbing (divided by 3)
+                        const progressChange = deltaX / (screenWidth * 3);
                         const newTime = Math.max(0, Math.min(currentVideo.duration, 
                             currentVideo.currentTime + (progressChange * currentVideo.duration)));
                         currentVideo.currentTime = newTime;
                         const progress = (newTime / currentVideo.duration) * 100;
                         const progressBar = document.querySelector('.progress-bar');
-                        if (progressBar) {
-                            progressBar.style.width = `${progress}%`;
-                        }
+                        if (progressBar) progressBar.style.width = `${progress}%`;
                     }
                 });
 
@@ -512,15 +524,4 @@
                 alert(fullTitle);
             }
 
-            loadReel(currentIndex);
-            enableScrollPlayback();
-        }
-
-        // Prevent video URL exposure
-        document.addEventListener('contextmenu', (e) => e.preventDefault());
-        document.addEventListener('dragstart', (e) => e.preventDefault());
-
-        initialize();
-    </script>
-</body>
-</html>
+            console.log('Starting reel load at index:', c
