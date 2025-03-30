@@ -194,6 +194,17 @@
             50% { transform: scale(1.2); opacity: 1; }
             100% { transform: scale(0.8); opacity: 0.7; }
         }
+
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            z-index: 20;
+            display: none;
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -217,6 +228,8 @@
             <div class="dot"></div>
         </div>
     </div>
+    
+    <div class="error-message" id="error-message"></div>
     
     <img class="top-right-logo" src="https://i.postimg.cc/X77btM3F/20250328-151255.png" alt="Logo">
 
@@ -244,6 +257,7 @@
         const usernameContainer = document.getElementById('username');
         const verifyBadge = document.getElementById('verify-badge');
         const loadingOverlay = document.getElementById('loading-overlay');
+        const errorMessage = document.getElementById('error-message');
         const progressBar = document.createElement('div');
         progressBar.className = 'progress-bar';
         document.body.appendChild(progressBar);
@@ -259,10 +273,10 @@
 
         async function checkUrlValidity(url) {
             try {
-                const response = await fetch(url, { method: 'HEAD' });
+                const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
                 return response.ok;
             } catch (error) {
-                console.log(`URL invalid or inaccessible: ${url}`, error);
+                console.error(`URL invalid or inaccessible: ${url}`, error);
                 return false;
             }
         }
@@ -276,15 +290,24 @@
 
         async function loadMetadata() {
             try {
+                loadingOverlay.style.display = 'block';
                 const [profilesResponse, reelsResponse] = await Promise.all([
-                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json').then(res => {
-                        if (!res.ok) throw new Error('Profiles fetch failed');
-                        return res.json();
-                    }),
-                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json').then(res => {
-                        if (!res.ok) throw new Error('Reels fetch failed');
-                        return res.json();
-                    })
+                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json', { mode: 'cors' })
+                        .then(res => {
+                            if (!res.ok) throw new Error(`Profiles fetch failed: ${res.status}`);
+                            return res.json();
+                        })
+                        .catch(error => {
+                            throw new Error(`Failed to fetch profiles: ${error.message}`);
+                        }),
+                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json', { mode: 'cors' })
+                        .then(res => {
+                            if (!res.ok) throw new Error(`Reels fetch failed: ${res.status}`);
+                            return res.json();
+                        })
+                        .catch(error => {
+                            throw new Error(`Failed to fetch reels: ${error.message}`);
+                        })
                 ]);
 
                 const profiles = profilesResponse.profiles || [];
@@ -292,6 +315,7 @@
 
                 if (allReels.length === 0) {
                     container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">No reels available.</div>';
+                    loadingOverlay.style.display = 'none';
                     return { profiles, success: false };
                 }
 
@@ -306,8 +330,13 @@
                 return { profiles, success: true };
             } catch (error) {
                 console.error('Error loading metadata:', error);
-                container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Loading failed. Retrying...</div>';
-                setTimeout(() => loadMetadata(), 2000);
+                loadingOverlay.style.display = 'none';
+                errorMessage.style.display = 'block';
+                errorMessage.innerHTML = `Failed to load data: ${error.message}<br>Retrying in 5 seconds...`;
+                setTimeout(() => {
+                    errorMessage.style.display = 'none';
+                    loadMetadata();
+                }, 5000);
                 return { profiles: [], success: false };
             }
         }
@@ -356,12 +385,16 @@
                     if (parseInt(video.dataset.index) === currentIndex) {
                         updateMetadata(reel);
                         div.classList.add('active');
-                        video.play().catch((error) => console.log(`Play error for ${reel.media}:`, error));
+                        video.play().catch((error) => {
+                            console.error(`Play error for ${reel.media}:`, error);
+                            errorMessage.style.display = 'block';
+                            errorMessage.innerHTML = `Failed to play video: ${error.message}`;
+                        });
                     }
                 });
 
                 video.addEventListener('timeupdate', () => {
-                    if (!video.paused && !isScrubbing) {
+                    if (!video.paused && !isScrolving) {
                         const progress = (video.currentTime / video.duration) * 100;
                         progressBar.style.width = `${progress}%`;
                     }
@@ -375,6 +408,8 @@
 
                 video.addEventListener('error', (e) => {
                     console.error(`Error loading video ${reel.media}:`, e.message);
+                    errorMessage.style.display = 'block';
+                    errorMessage.innerHTML = `Error loading video: ${e.message}`;
                     nextReel();
                 });
 
@@ -416,6 +451,7 @@
                 }
 
                 loadingOverlay.style.display = 'block';
+                errorMessage.style.display = 'none';
 
                 // Pause all videos and remove active class
                 videoContainers.forEach(container => {
@@ -432,6 +468,9 @@
                 if (!videoContainers[index]) {
                     const videoUrl = await loadVideoUrl(reel);
                     if (!videoUrl) {
+                        loadingOverlay.style.display = 'none';
+                        errorMessage.style.display = 'block';
+                        errorMessage.innerHTML = `Failed to load video URL for reel ${reel.reelId}`;
                         direction === 'next' ? nextReel() : prevReel();
                         return;
                     }
@@ -447,7 +486,9 @@
                     updateMetadata(reel);
                     loadingOverlay.style.display = 'none';
                     video.play().catch((error) => {
-                        console.log(`Play error for existing video:`, error);
+                        console.error(`Play error for existing video:`, error);
+                        errorMessage.style.display = 'block';
+                        errorMessage.innerHTML = `Failed to play existing video: ${error.message}`;
                         video.load();
                         setTimeout(() => video.play(), 100);
                     });
@@ -501,46 +542,4 @@
 
                 container.addEventListener('touchend', (e) => {
                     if (isTransitioning) return;
-                    const touchEndY = e.changedTouches[0].clientY;
-                    const swipeDistance = touchStartY - touchEndY;
-
-                    clearTimeout(holdTimer);
-                    progressBar.classList.remove('highlighted');
-
-                    if (isHolding && Math.abs(swipeDistance) < 50 && currentVideo) {
-                        currentVideo.play().catch(() => {});
-                    } else if (swipeDistance > 50) {
-                        isTransitioning = true;
-                        nextReel();
-                        setTimeout(() => { isTransitioning = false; }, 500);
-                    } else if (swipeDistance < -50) {
-                        isTransitioning = true;
-                        prevReel();
-                        setTimeout(() => { isTransitioning = false; }, 500);
-                    }
-                    isHolding = false;
-                    isScrubbing = false;
-
-                    const now = new Date().getTime();
-                    const timeSinceLastTap = now - lastTap;
-                    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
-                        const reel = allReels[currentIndex];
-                        const reelLikes = likes.get(reel.reelId);
-                        reelLikes.count += 1;
-                        const touchX = e.changedTouches[0].clientX;
-                        const touchY = e.changedTouches[0].clientY;
-                        showLikeAnimation(touchX, touchY);
-                    }
-                    lastTap = now;
-                });
-
-                profilePic.addEventListener('click', () => {
-                    const profileId = profilePic.dataset.id;
-                    window.open(`/profiles.html?id=${profileId}`, '_blank');
-                });
-
-                usernameContainer.addEventListener('click', () => {
-                    const profileId = usernameContainer.dataset.id;
-                    window.open(`/profiles.html?id=${profileId}`, '_blank');
-                });
-    
+                    const touchEndY = e.changedT
