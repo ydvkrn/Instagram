@@ -14,6 +14,7 @@
             -webkit-user-select: none;
             user-select: none;
             touch-action: manipulation;
+            font-family: Arial, sans-serif;
         }
 
         #reels-container {
@@ -42,6 +43,21 @@
             object-fit: contain;
             display: block;
             background-color: #000;
+        }
+
+        video.fullscreen {
+            object-fit: cover;
+        }
+
+        .video-container.paused::after {
+            content: '▶';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 50px;
+            color: white;
+            opacity: 0.7;
         }
 
         .fixed-overlay {
@@ -74,7 +90,7 @@
         }
 
         .username {
-            font-size: 16px;
+            font-size: clamp(1rem, 4vw, 1.2rem);
             font-weight: bold;
             display: flex;
             align-items: center;
@@ -86,8 +102,19 @@
             margin-left: 5px;
         }
 
+        .follow-button {
+            margin-left: 10px;
+            padding: 5px 10px;
+            background: #0095f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: clamp(0.8rem, 3vw, 0.9rem);
+        }
+
         .title {
-            font-size: 14px;
+            font-size: clamp(0.9rem, 3.5vw, 1rem);
             opacity: 0.9;
             position: fixed;
             bottom: 40px;
@@ -113,11 +140,43 @@
             cursor: pointer;
             pointer-events: auto;
             transition: height 0.2s;
+            position: relative;
         }
 
         .progress-bar.highlighted {
             height: 8px;
             background: rgba(255, 255, 255, 1);
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+            right: -6px;
+            top: -4px;
+            display: none;
+        }
+
+        .progress-bar.highlighted::after {
+            display: block;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            top: -30px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .progress-bar:hover .tooltip {
+            display: block;
         }
 
         .like-animation {
@@ -146,52 +205,159 @@
             z-index: 10;
             pointer-events: none;
         }
+
+        .action-buttons {
+            position: fixed;
+            right: 15px;
+            bottom: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+            color: white;
+            font-size: clamp(0.8rem, 3vw, 0.9rem);
+            text-align: center;
+        }
+
+        .action-button {
+            cursor: pointer;
+        }
+
+        .action-button img {
+            width: 30px;
+            height: 30px;
+        }
+
+        #comment-modal {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 50%;
+            background: #fff;
+            z-index: 20;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        #comment-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        #comments-list {
+            max-height: 80%;
+            overflow-y: auto;
+        }
+
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
     <div id="reels-container"></div>
 
     <div class="fixed-overlay">
-        <img class="profile-pic" id="profile-pic" src="https://i.postimg.cc/3Rh3SjRb/image.jpg">
+        <img class="profile-pic" id="profile-pic" src="https://i.postimg.cc/3Rh3SjRb/image.jpg" loading="lazy" aria-label="User profile picture">
         <div class="user-info">
-            <div class="username" id="username">
+            <div class="username" id="username" role="button" aria-label="Visit user profile">
                 <span id="username-text">Loading...</span>
                 <img class="verify-badge" id="verify-badge" src="https://i.postimg.cc/28DChkBZ/1000062918-removebg-preview-min.png" style="display: none;">
             </div>
         </div>
+        <button class="follow-button" id="follow-button">Follow</button>
     </div>
 
     <div class="title" id="title" onclick="showFullTitle()">Loading...</div>
 
+    <div class="action-buttons">
+        <div class="action-button like-button">
+            <img src="https://i.postimg.cc/pr68HrJm/1000063176-removebg-preview.png" aria-label="Like reel">
+            <span id="like-count">0</span>
+        </div>
+        <div class="action-button comment-button">
+            <img src="https://i.postimg.cc/xxx/comment-icon.png" aria-label="Comment on reel">
+            <span>Comment</span>
+        </div>
+        <div class="action-button share-button">
+            <img src="https://i.postimg.cc/xxx/share-icon.png" aria-label="Share reel">
+            <span>Share</span>
+        </div>
+    </div>
+
+    <div id="comment-modal">
+        <input type="text" id="comment-input" placeholder="Add a comment..." aria-label="Add a comment">
+        <div id="comments-list"></div>
+    </div>
+
     <img class="top-right-logo" src="https://i.postimg.cc/X77btM3F/20250328-151255.png" alt="Logo">
 
+    <div class="progress-bar" id="progress-bar">
+        <div class="tooltip" id="progress-tooltip"></div>
+    </div>
+
     <script>
+        // Constants
+        const SWIPE_THRESHOLD = 50;
+        const DOUBLE_TAP_DELAY = 300;
+        const SWIPE_DEBOUNCE = 300;
+        const CACHE_DURATION = 3600000; // 1 hour in ms
+        const MAX_RETRIES = 3;
+
+        // State
         let fullTitle = "";
-        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false;
+        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true';
         let allReels = [];
         let currentIndex = 0;
         let touchStartY = 0;
+        let touchStartX = 0;
         let isTransitioning = false;
+        let isScrubbing = false;
         let currentVideo = null;
         let holdTimer = null;
         let likes = new Map();
         let lastTap = 0;
-        let isScrubbing = false;
-        let touchStartX = 0;
+        let lastSwipe = 0;
+        let lastDoubleTap = 0;
+        let retryCount = 0;
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const initialReelId = urlParams.get('reelId') || null;
-
+        // DOM Elements
         const container = document.getElementById('reels-container');
         const profilePic = document.getElementById('profile-pic');
         const usernameText = document.getElementById('username-text');
         const usernameContainer = document.getElementById('username');
         const verifyBadge = document.getElementById('verify-badge');
         const title = document.getElementById('title');
-        const progressBar = document.createElement('div');
-        progressBar.className = 'progress-bar';
-        document.body.appendChild(progressBar);
+        const followButton = document.getElementById('follow-button');
+        const likeCount = document.getElementById('like-count');
+        const progressBar = document.getElementById('progress-bar');
+        const progressTooltip = document.getElementById('progress-tooltip');
+        const commentModal = document.getElementById('comment-modal');
+        const commentInput = document.getElementById('comment-input');
+        const commentsList = document.getElementById('comments-list');
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialReelId = urlParams.get('reelId') || null;
+
+        // Utility Functions
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
             isAudioEnabled = true;
@@ -203,10 +369,7 @@
 
         async function checkUrlValidity(url) {
             try {
-                const response = await fetch(url, { 
-                    method: 'HEAD', 
-                    mode: 'no-cors'
-                });
+                const response = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
                 return true;
             } catch (error) {
                 console.log(`URL invalid or inaccessible: ${url}`, error);
@@ -221,7 +384,24 @@
             }
         }
 
+        function showLoadingSpinner() {
+            const spinner = document.createElement('div');
+            spinner.className = 'loading-spinner';
+            container.appendChild(spinner);
+            return () => spinner.remove();
+        }
+
+        // Data Loading
         async function loadMetadata() {
+            const cacheKey = 'reels_metadata';
+            const cache = localStorage.getItem(cacheKey);
+            if (cache) {
+                const { data, timestamp } = JSON.parse(cache);
+                if (Date.now() - timestamp < CACHE_DURATION) {
+                    return data;
+                }
+            }
+
             try {
                 const [profilesResponse, reelsResponse] = await Promise.all([
                     fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json').then(res => {
@@ -242,16 +422,16 @@
                     return { profiles, success: false };
                 }
 
-                // Shuffle the reels
                 shuffleArray(allReels);
-
                 allReels.forEach(reel => {
                     if (!likes.has(reel.reelId)) {
                         likes.set(reel.reelId, { count: 0, liked: false });
                     }
                 });
 
-                return { profiles, success: true };
+                const data = { profiles, success: true };
+                localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
+                return data;
             } catch (error) {
                 console.error('Error loading metadata:', error);
                 container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%;">Loading failed. Retrying...</div>';
@@ -260,260 +440,167 @@
             }
         }
 
-        async function initialize() {
-            const { profiles, success } = await loadMetadata();
-            if (!success) return;
-
-            currentIndex = initialReelId ? 
-                allReels.findIndex(reel => reel.reelId === initialReelId) : 
-                0;
-            if (currentIndex === -1) currentIndex = 0;
-
-            function getProfileById(id) {
-                return profiles.find(profile => profile.id === id) || { 
-                    username: "bot", 
-                    profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg", 
-                    verified: true
-                };
-            }
-
-            async function loadVideoUrl(reel) {
-                const isValid = await checkUrlValidity(reel.media);
-                return isValid ? reel.media : null;
-            }
-
-            function createVideoElement(reel, index, videoUrl) {
-                const div = document.createElement('div');
-                div.className = 'video-container';
-
-                const video = document.createElement('video');
-                video.playsInline = true;
-                video.controls = false;
-                video.muted = !isAudioEnabled;
-                video.dataset.index = index;
-                video.dataset.title = reel.title;
-                video.src = videoUrl;
-                video.preload = 'auto';
-                video.setAttribute('playsinline', '');
-                video.setAttribute('webkit-playsinline', '');
-                video.type = 'video/mp4';
-
-                video.addEventListener('canplay', () => {
-                    console.log(`Video can play: ${reel.media}`);
-                    currentVideo = video;
-                    updateMetadata(reel);
-                    video.play().catch((error) => console.log(`Play error for ${reel.media}:`, error));
-                });
-
-                video.addEventListener('timeupdate', () => {
-                    if (!video.paused && !isScrubbing) {
-                        const progress = (video.currentTime / video.duration) * 100;
-                        progressBar.style.width = `${progress}%`;
-                    }
-                });
-
-                video.addEventListener('ended', () => {
-                    console.log(`Video ended: ${reel.media}`);
-                    video.currentTime = 0;
-                    video.play().catch((error) => console.log(`Loop play error for ${reel.media}:`, error));
-                });
-
-                video.addEventListener('error', (e) => {
-                    console.error(`Error loading video ${reel.media}:`, e.message);
-                    nextReel();
-                });
-
-                video.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    if (!isAudioEnabled) {
-                        setAudioPersistence();
-                    }
-                });
-
-                progressBar.addEventListener('click', (e) => {
-                    if (currentVideo) {
-                        const rect = progressBar.getBoundingClientRect();
-                        const clickX = e.clientX - rect.left;
-                        const progressWidth = rect.width;
-                        const clickPercentage = clickX / progressWidth;
-                        currentVideo.currentTime = clickPercentage * currentVideo.duration;
-                    }
-                });
-
-                progressBar.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    const rect = progressBar.getBoundingClientRect();
-                    const touchX = touch.clientX - rect.left;
-                    const progressWidth = rect.width;
-                    const touchPercentage = touchX / progressWidth;
-                    if (currentVideo) {
-                        currentVideo.currentTime = touchPercentage * currentVideo.duration;
-                    }
-                });
-
-                div.appendChild(video);
-                return div;
-            }
-
-            function updateMetadata(reel) {
-                fullTitle = reel.title;
-                title.innerText = reel.title;
-                const profileData = getProfileById(reel.id);
-                profilePic.src = profileData.profile || "https://i.postimg.cc/3Rh3SjRb/image.jpg";
-                usernameText.innerText = profileData.username;
-                verifyBadge.style.display = profileData.verified ? "inline" : "none";
-                profilePic.dataset.id = reel.id;
-                usernameContainer.dataset.id = reel.id;
-            }
-
-            function showLikeAnimation(x, y) {
-                const likeImg = document.createElement('img');
-                likeImg.src = 'https://i.postimg.cc/pr68HrJm/1000063176-removebg-preview.png';
-                likeImg.className = 'like-animation';
-                likeImg.style.left = `${x}px`;
-                likeImg.style.top = `${y}px`;
-                container.appendChild(likeImg);
-                setTimeout(() => likeImg.remove(), 500);
-            }
-
-            async function loadReel(index) {
-                if (index < 0 || index >= allReels.length) {
-                    console.warn('Index out of bounds:', index);
-                    return;
-                }
-
-                // Pause and mute the current video before loading the next one
-                if (currentVideo) {
-                    currentVideo.pause();
-                    currentVideo.muted = true; // Mute the current video
-                }
-
-                container.innerHTML = '';
-                const reel = allReels[index];
-                const videoUrl = await loadVideoUrl(reel);
-                if (!videoUrl) {
-                    nextReel();
-                    return;
-                }
-
-                const videoElement = createVideoElement(reel, index, videoUrl);
-                container.appendChild(videoElement);
-
-                currentVideo = videoElement.querySelector('video');
-                currentVideo.play().catch((error) => console.log(`Initial play error for ${reel.media}:`, error));
-                updateMetadata(reel);
-
-                window.history.pushState({}, document.title, `/Instagram/?reelId=${allReels[index].reelId}`);
-            }
-
-            function nextReel() {
-                if (currentIndex + 1 < allReels.length) {
-                    currentIndex++;
-                    loadReel(currentIndex);
-                }
-            }
-
-            function prevReel() {
-                if (currentIndex > 0) {
-                    currentIndex--;
-                    loadReel(currentIndex);
-                }
-            }
-
-            function enableScrollPlayback() {
-                let touchStartY = 0;
-                let touchMoveY = 0;
-                let isHolding = false;
-
-                container.addEventListener('touchstart', (e) => {
-                    touchStartY = e.touches[0].clientY;
-                    touchStartX = e.touches[0].clientX;
-                    touchMoveY = touchStartY;
-                    isHolding = true;
-                    clearTimeout(holdTimer);
-                    holdTimer = setTimeout(() => {
-                        if (isHolding && currentVideo) {
-                            currentVideo.pause();
-                            isScrubbing = true;
-                            progressBar.classList.add('highlighted');
-                        }
-                    }, 500);
-                });
-
-                container.addEventListener('touchmove', (e) => {
-                    touchMoveY = e.touches[0].clientY;
-                    if (isScrubbing && currentVideo) {
-                        const touchX = e.touches[0].clientX;
-                        const deltaX = touchX - touchStartX;
-                        const screenWidth = window.innerWidth;
-                        const progressChange = deltaX / (screenWidth * 3);
-                        const newTime = Math.max(0, Math.min(currentVideo.duration, 
-                            currentVideo.currentTime + (progressChange * currentVideo.duration)));
-                        currentVideo.currentTime = newTime;
-                        const progress = (newTime / currentVideo.duration) * 100;
-                        progressBar.style.width = `${progress}%`;
-                    }
-                });
-
-                container.addEventListener('touchend', (e) => {
-                    if (isTransitioning) return;
-                    const touchEndY = e.changedTouches[0].clientY;
-                    const swipeDistance = touchStartY - touchEndY;
-
-                    clearTimeout(holdTimer);
-                    progressBar.classList.remove('highlighted');
-
-                    if (isHolding && Math.abs(swipeDistance) < 50 && currentVideo) {
-                        currentVideo.play().catch(() => {});
-                    } else if (swipeDistance > 50) {
-                        isTransitioning = true;
-                        nextReel();
-                        setTimeout(() => { isTransitioning = false; }, 100);
-                    } else if (swipeDistance < -50) {
-                        isTransitioning = true;
-                        prevReel();
-                        setTimeout(() => { isTransitioning = false; }, 100);
-                    }
-                    isHolding = false;
-                    isScrubbing = false;
-
-                    const now = new Date().getTime();
-                    const timeSinceLastTap = now - lastTap;
-                    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
-                        const reel = allReels[currentIndex];
-                        const reelLikes = likes.get(reel.reelId);
-                        reelLikes.count += 1;
-                        const touchX = e.changedTouches[0].clientX;
-                        const touchY = e.changedTouches[0].clientY;
-                        showLikeAnimation(touchX, touchY);
-                    }
-                    lastTap = now;
-                });
-
-                profilePic.addEventListener('click', () => {
-                    const profileId = profilePic.dataset.id;
-                    window.open(`/profiles.html?id=${profileId}`, '_blank');
-                });
-
-                usernameContainer.addEventListener('click', () => {
-                    const profileId = usernameContainer.dataset.id;
-                    window.open(`/profiles.html?id=${profileId}`, '_blank');
-                });
-            }
-
-            function showFullTitle() {
-                alert(fullTitle);
-            }
-
-            loadReel(currentIndex);
-            enableScrollPlayback();
+        // Video Handling
+        async function loadVideoUrl(reel) {
+            const isValid = await checkUrlValidity(reel.media);
+            return isValid ? reel.media : null;
         }
 
-        document.addEventListener('contextmenu', (e) => e.preventDefault());
-        document.addEventListener('dragstart', (e) => e.preventDefault());
+        function createVideoElement(reel, index, videoUrl) {
+            const div = document.createElement('div');
+            div.className = 'video-container';
 
-        initialize();
-    </script>
-</body>
-</html>
+            const video = document.createElement('video');
+            video.playsInline = true;
+            video.controls = false;
+            video.muted = !isAudioEnabled;
+            video.dataset.index = index;
+            video.dataset.title = reel.title;
+            video.src = videoUrl;
+            video.preload = 'auto';
+            video.setAttribute('playsinline', '');
+            video.setAttribute('webkit-playsinline', '');
+            video.type = 'video/mp4';
+
+            video.addEventListener('canplay', () => {
+                console.log(`Video can play: ${reel.media}`);
+                currentVideo = video;
+                updateMetadata(reel);
+                video.play().catch((error) => console.log(`Play error for ${reel.media}:`, error));
+            });
+
+            video.addEventListener('timeupdate', () => {
+                if (!video.paused && !isScrubbing) {
+                    const progress = (video.currentTime / video.duration) * 100;
+                    progressBar.style.width = `${progress}%`;
+                }
+            });
+
+            video.addEventListener('ended', () => {
+                console.log(`Video ended: ${reel.media}`);
+                video.currentTime = 0;
+                video.play().catch((error) => console.log(`Loop play error for ${reel.media}:`, error));
+            });
+
+            video.addEventListener('error', () => {
+                if (retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    console.log(`Retrying video load (${retryCount}/${MAX_RETRIES}): ${reel.media}`);
+                    video.load();
+                } else {
+                    console.error(`Failed to load video after retries: ${reel.media}`);
+                    nextReel();
+                }
+            });
+
+            video.addEventListener('pause', () => {
+                div.classList.add('paused');
+            });
+
+            video.addEventListener('play', () => {
+                div.classList.remove('paused');
+            });
+
+            video.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!isAudioEnabled) {
+                    setAudioPersistence();
+                }
+            });
+
+            div.appendChild(video);
+            return div;
+        }
+
+        async function preloadAdjacentReels() {
+            const prevIndex = currentIndex - 1;
+            const nextIndex = currentIndex + 1;
+            if (prevIndex >= 0) {
+                const prevReel = allReels[prevIndex];
+                const prevVideo = document.createElement('video');
+                prevVideo.src = await loadVideoUrl(prevReel);
+                prevVideo.preload = 'auto';
+            }
+            if (nextIndex < allReels.length) {
+                const nextReel = allReels[nextIndex];
+                const nextVideo = document.createElement('video');
+                nextVideo.src = await loadVideoUrl(nextReel);
+                nextVideo.preload = 'auto';
+            }
+        }
+
+        // UI Updates
+        function updateMetadata(reel) {
+            fullTitle = reel.title;
+            title.innerText = reel.title;
+            const profileData = getProfileById(reel.id);
+            profilePic.src = profileData.profile || "https://i.postimg.cc/3Rh3SjRb/image.jpg";
+            usernameText.innerText = profileData.username;
+            verifyBadge.style.display = profileData.verified ? "inline" : "none";
+            profilePic.dataset.id = reel.id;
+            usernameContainer.dataset.id = reel.id;
+            followButton.innerText = profileData.followed ? 'Following' : 'Follow';
+            likeCount.innerText = likes.get(reel.reelId).count;
+        }
+
+        function showLikeAnimation(x, y) {
+            const likeImg = document.createElement('img');
+            likeImg.src = 'https://i.postimg.cc/pr68HrJm/1000063176-removebg-preview.png';
+            likeImg.className = 'like-animation';
+            likeImg.style.left = `${x}px`;
+            likeImg.style.top = `${y}px`;
+            container.appendChild(likeImg);
+            setTimeout(() => likeImg.remove(), 500);
+        }
+
+        function showFullTitle() {
+            alert(fullTitle);
+        }
+
+        // Navigation
+        function nextReel() {
+            if (currentIndex + 1 < allReels.length) {
+                currentIndex++;
+                loadReel(currentIndex);
+            }
+        }
+
+        function prevReel() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                loadReel(currentIndex);
+            }
+        }
+
+        async function loadReel(index) {
+            if (index < 0 || index >= allReels.length) {
+                console.warn('Index out of bounds:', index);
+                return;
+            }
+
+            const removeSpinner = showLoadingSpinner();
+            if (currentVideo) {
+                currentVideo.pause();
+                currentVideo.muted = true;
+            }
+
+            container.innerHTML = '';
+            const reel = allReels[index];
+            const videoUrl = await loadVideoUrl(reel);
+            if (!videoUrl) {
+                removeSpinner();
+                nextReel();
+                return;
+            }
+
+            const videoElement = createVideoElement(reel, index, videoUrl);
+            container.appendChild(videoElement);
+            currentVideo = videoElement.querySelector('video');
+            currentVideo.play().catch((error) => console.log(`Initial play error for ${reel.media}:`, error));
+            updateMetadata(reel);
+            window.history.pushState({}, document.title, `/Instagram/?reelId=${allReels[index].reelId}`);
+            preloadAdjacentReels();
+            removeSpinner();
+        }
+
+        // Event Handlers
