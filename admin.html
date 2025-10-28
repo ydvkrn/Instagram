@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Reels & Profiles</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+body { background: #121212; color: #fff; text-align: center; padding: 10px; }
+.container { max-width: 90%; margin: auto; padding: 15px; background: #1e1e1e; border-radius: 10px; }
+.tabs { display: flex; justify-content: center; margin-bottom: 15px; gap: 5px; }
+.tab-btn { padding: 10px 20px; background: #333; border: none; color: #fff; cursor: pointer; border-radius: 5px 5px 0 0; font-size: 14px; transition: all 0.3s; }
+.tab-btn.active { background: #ff0066; }
+.tab-btn:hover { background: #e6005c; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+h2 { margin-bottom: 15px; font-size: 20px; color: #ff0066; }
+input, button, textarea { width: 100%; padding: 8px; margin: 5px 0; border-radius: 5px; border: none; font-size: 14px; }
+input, textarea { background: #333; color: #fff; }
+textarea { min-height: 60px; resize: vertical; font-family: inherit; }
+button { background: #ff0066; color: white; cursor: pointer; transition: all 0.3s; }
+button:hover { background: #e6005c; transform: translateY(-1px); }
+.btn-secondary { background: #555; }
+.btn-secondary:hover { background: #666; }
+.final-update-btn { background: #00cc00; margin-top: 10px; }
+.final-update-btn:hover { background: #00b300; }
+.refresh-btn { background: #ff9900; margin-top: 5px; font-size: 13px; padding: 6px 12px; width: auto; display: inline-block; margin-right: 5px; }
+.refresh-btn:hover { background: #ff7700; }
+.reel-list, .profile-list { margin-top: 15px; }
+.reel-item, .profile-item { background: #222; padding: 10px; margin-bottom: 10px; border-radius: 5px; text-align: left; border: 2px solid #333; transition: all 0.3s; }
+.reel-item:hover, .profile-item:hover { border-color: #ff0066; }
+.reel-item.has-instagram { border-left: 3px solid #E1306C; }
+.video-container video { width: 100%; max-height: 200px; margin-top: 8px; border-radius: 5px; cursor: pointer; object-fit: cover; background: #000; }
+.profile-item img { width: 100px; height: 100px; object-fit: cover; border-radius: 5px; margin-top: 5px; border: 2px solid #ff0066; }
+.delete-btn { background: #ff0000; margin-top: 5px; font-size: 13px; padding: 6px 12px; width: auto; display: inline-block; }
+.delete-btn:hover { background: #cc0000; }
+.pagination { margin-top: 15px; }
+.pagination button { width: auto; padding: 5px 15px; display: inline-block; margin: 0 5px; }
+.pagination button:disabled { opacity: 0.3; cursor: not-allowed; }
+.message { padding: 10px; margin: 10px 0; border-radius: 5px; font-weight: 600; }
+.message.success { background: rgba(0, 204, 0, 0.2); color: #00ff00; border: 1px solid #00cc00; }
+.message.error { background: rgba(255, 0, 0, 0.2); color: #ff6666; border: 1px solid #ff0000; }
+.message.warning { background: rgba(255, 153, 0, 0.2); color: #ffaa00; border: 1px solid #ff9900; }
+.loading { display: none; padding: 10px; background: rgba(255, 0, 102, 0.1); border-radius: 5px; margin: 10px 0; border: 1px solid #ff0066; color: #ff0066; }
+.loading.active { display: block; }
+.badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; margin-left: 5px; font-weight: 600; }
+.badge-instagram { background: #E1306C; color: white; }
+.badge-expire { background: #ff9900; color: white; }
+.url-info { font-size: 11px; opacity: 0.6; margin-top: 5px; word-break: break-all; }
+.info-text { font-size: 12px; opacity: 0.7; margin: 10px 0; line-height: 1.5; }
+.checkbox-label { display: flex; align-items: center; gap: 8px; margin: 10px 0; justify-content: flex-start; }
+.checkbox-label input[type="checkbox"] { width: auto; }
+hr { border: none; border-top: 1px solid #333; margin: 15px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="tabs">
+<button class="tab-btn active" onclick="switchTab('reels', event)"><i class="fas fa-video"></i> Manage Reels</button>
+<button class="tab-btn" onclick="switchTab('profiles', event)"><i class="fas fa-user"></i> Manage Profiles</button>
+</div>
+
+<!-- Reels Tab -->
+<div id="reels" class="tab-content active">
+<h2><i class="fas fa-video"></i> Manage Reels</h2>
+
+<input type="text" id="reel-search-id" placeholder="Search by ID or Title">
+<button onclick="searchReel()" class="btn-secondary"><i class="fas fa-search"></i> Search</button>
+
+<hr>
+
+<input type="text" id="reel-id" placeholder="Profile ID (e.g., user123)" required>
+<textarea id="video-url" placeholder="Paste Instagram URL or Direct Video URL here" required></textarea>
+<p class="info-text">
+<i class="fas fa-info-circle"></i> Instagram URL automatically convert hoga. Normal URL waise hi save hoga.
+</p>
+<input type="text" id="title" placeholder="Video Title" required>
+
+<div class="loading" id="loading-fetch">
+<i class="fas fa-spinner fa-spin"></i> Fetching from Instagram API...
+</div>
+
+<button onclick="addReel()"><i class="fas fa-plus"></i> Add Reel</button>
+<div id="reel-message"></div>
+
+<button class="refresh-btn" onclick="refreshAllExpired()">
+<i class="fas fa-sync-alt"></i> Refresh All Expired
+</button>
+
+<div class="reel-list" id="reel-list"></div>
+
+<div class="pagination">
+<button onclick="reelPrevPage()" id="reel-prev-btn" disabled>
+<i class="fas fa-chevron-left"></i> Previous
+</button>
+<span id="reel-page-info"></span>
+<button onclick="reelNextPage()" id="reel-next-btn">
+Next <i class="fas fa-chevron-right"></i>
+</button>
+</div>
+
+<button class="final-update-btn" onclick="finalUpdateReels()">
+<i class="fas fa-save"></i> Save to GitHub
+</button>
+</div>
+
+<!-- Profiles Tab -->
+<div id="profiles" class="tab-content">
+<h2><i class="fas fa-user"></i> Manage Profiles</h2>
+
+<input type="text" id="profile-search-id" placeholder="Search by Profile ID">
+<button onclick="searchProfile()" class="btn-secondary"><i class="fas fa-search"></i> Search</button>
+
+<hr>
+
+<input type="text" id="profile-id" placeholder="Profile ID (must match reel ID)" required>
+<input type="text" id="username" placeholder="Username" required>
+<input type="url" id="profile-url" placeholder="Profile Image URL" required>
+
+<label class="checkbox-label">
+<input type="checkbox" id="verified">
+<span><i class="fas fa-check-circle"></i> Verified Profile</span>
+</label>
+
+<button onclick="addProfile()"><i class="fas fa-plus"></i> Add Profile</button>
+<div id="profile-message"></div>
+
+<div class="profile-list" id="profile-list"></div>
+
+<div class="pagination">
+<button onclick="profilePrevPage()" id="profile-prev-btn" disabled>
+<i class="fas fa-chevron-left"></i> Previous
+</button>
+<span id="profile-page-info"></span>
+<button onclick="profileNextPage()" id="profile-next-btn">
+Next <i class="fas fa-chevron-right"></i>
+</button>
+</div>
+
+<button class="final-update-btn" onclick="finalUpdateProfiles()">
+<i class="fas fa-save"></i> Save to GitHub
+</button>
+</div>
+</div>
+
+<script>
+// ===== CONFIGURATION (NO SECRETS) =====
+const INSTAGRAM_API = "https://api.yabes-desu.workers.dev/download/instagram/v2?url=";
+
+let reelCurrentPage = 1, profileCurrentPage = 1;
+const itemsPerPage = 5;
+let allReels = [], allProfiles = [];
+let originalReels = [], originalProfiles = [];
+
+// ===== TAB SWITCHING =====
+function switchTab(tabName, event) {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(tabName).classList.add('active');
+    event.target.classList.add('active');
+}
+
+// ===== INSTAGRAM FUNCTIONS =====
+function isInstagramUrl(url) {
+    return url && (url.includes('instagram.com/p/') || url.includes('instagram.com/reel/') || 
+                   url.includes('instagram.com/tv/') || url.includes('instagram.com/stories/'));
+}
+
+async function fetchInstagramVideo(instagramUrl) {
+    try {
+        const response = await fetch(INSTAGRAM_API + encodeURIComponent(instagramUrl));
+        if (!response.ok) throw new Error(`API status: ${response.status}`);
+        
+        const data = await response.json();
+        
+        // Multiple formats support
+        if (data.video && Array.isArray(data.video) && data.video[0]) {
+            return data.video[0].url || data.video[0];
+        }
+        if (data.url) return data.url;
+        if (data.download_url) return data.download_url;
+        if (data.media) return data.media;
+        if (data.data?.url) return data.data.url;
+        
+        throw new Error('Video URL not found');
+    } catch (error) {
+        throw new Error(`Instagram fetch failed: ${error.message}`);
+    }
+}
+
+function isPotentiallyExpired(reel) {
+    if (!reel.lastRefreshed && !reel.addedDate) return true;
+    const lastUpdate = new Date(reel.lastRefreshed || reel.addedDate);
+    const daysSinceUpdate = (new Date() - lastUpdate) / (1000 * 60 * 60 * 24);
+    return daysSinceUpdate > 3;
+}
+
+// ===== REFRESH FUNCTIONS =====
+async function refreshReel(reelId) {
+    const reel = allReels.find(r => r.reelId === reelId);
+    if (!reel?.instagramUrl) return showMessage('No Instagram URL', 'error', 'reel');
+
+    try {
+        showLoading(true);
+        reel.media = await fetchInstagramVideo(reel.instagramUrl);
+        reel.lastRefreshed = new Date().toISOString();
+        showMessage('Refreshed successfully!', 'success', 'reel');
+        updateReelPage();
+    } catch (error) {
+        showMessage(error.message, 'error', 'reel');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function refreshAllExpired() {
+    const expiredReels = allReels.filter(r => r.instagramUrl && isPotentiallyExpired(r));
+    if (!expiredReels.length) return showMessage('No expired reels', 'success', 'reel');
+    if (!confirm(`Refresh ${expiredReels.length} reel(s)?`)) return;
+
+    showLoading(true);
+    let successCount = 0;
+
+    for (const reel of expiredReels) {
+        try {
+            reel.media = await fetchInstagramVideo(reel.instagramUrl);
+            reel.lastRefreshed = new Date().toISOString();
+            successCount++;
+            await new Promise(r => setTimeout(r, 1500));
+        } catch (e) {
+            console.error('Refresh failed:', e);
+        }
+    }
+
+    showLoading(false);
+    showMessage(`Refreshed ${successCount}/${expiredReels.length}`, 'success', 'reel');
+    updateReelPage();
+
+    if (successCount > 0 && confirm('Save to GitHub?')) await finalUpdateReels();
+}
+
+// ===== API FUNCTIONS =====
+async function loadReels() {
+    document.getElementById('reel-list').innerHTML = '<p style="text-align:center;opacity:0.7;"><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
+    
+    try {
+        const response = await fetch('/api/github-reels', { cache: 'no-store' });
+        const data = await response.json();
+        allReels = data.reels || [];
+        originalReels = JSON.parse(JSON.stringify(allReels));
+        updateReelPage();
+    } catch (error) {
+        showMessage(`Load failed: ${error.message}`, 'error', 'reel');
+        document.getElementById('reel-list').innerHTML = '';
+    }
+}
+
+async function finalUpdateReels() {
+    if (!confirm('Save to GitHub?')) return;
+
+    try {
+        showLoading(true);
+        const response = await fetch('/api/github-reels', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: { reels: allReels }, message: "Update reels" })
+        });
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+        
+        showMessage('Saved successfully!', 'success', 'reel');
+        await loadReels();
+    } catch (error) {
+        showMessage(`Save failed: ${error.message}`, 'error', 'reel');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function loadProfiles() {
+    document.getElementById('profile-list').innerHTML = '<p style="text-align:center;opacity:0.7;"><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
+    
+    try {
+        const response = await fetch('/api/github-profiles', { cache: 'no-store' });
+        const data = await response.json();
+        allProfiles = data.profiles || [];
+        originalProfiles = JSON.parse(JSON.stringify(allProfiles));
+        updateProfilePage();
+    } catch (error) {
+        showMessage(`Load failed: ${error.message}`, 'error', 'profile');
+        document.getElementById('profile-list').innerHTML = '';
+    }
+}
+
+async function finalUpdateProfiles() {
+    if (!confirm('Save to GitHub?')) return;
+
+    try {
+        showLoading(true);
+        const response = await fetch('/api/github-profiles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: { profiles: allProfiles }, message: "Update profiles" })
+        });
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+        
+        showMessage('Saved successfully!', 'success', 'profile');
+        await loadProfiles();
+    } catch (error) {
+        showMessage(`Save failed: ${error.message}`, 'error', 'profile');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ===== REEL FUNCTIONS =====
+function generateUniqueId() {
+    return `MSM${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+}
+
+function showLoading(show) {
+    document.getElementById('loading-fetch').classList.toggle('active', show);
+}
+
+function updateReelPage() {
+    const list = document.getElementById('reel-list');
+    list.innerHTML = "";
+
+    if (!allReels.length) {
+        list.innerHTML = '<p style="text-align:center;opacity:0.7;">No reels. Add one!</p>';
+        updateReelPagination();
+        return;
+    }
+
+    const start = (reelCurrentPage - 1) * itemsPerPage;
+    const end = Math.min(start + itemsPerPage, allReels.length);
+    allReels.slice(start, end).forEach(renderReel);
+    updateReelPagination();
+}
+
+function renderReel(reel) {
+    const list = document.getElementById('reel-list');
+    const item = document.createElement('div');
+    item.classList.add('reel-item');
+    if (reel.instagramUrl) item.classList.add('has-instagram');
+
+    const hasIG = reel.instagramUrl;
+    const expired = hasIG && isPotentiallyExpired(reel);
+    
+    item.innerHTML = `
+        <p><b>Reel ID:</b> ${reel.reelId} 
+            ${hasIG ? '<span class="badge badge-instagram"><i class="fab fa-instagram"></i> Instagram</span>' : ''}
+            ${expired ? '<span class="badge badge-expire"><i class="fas fa-clock"></i> May Expire</span>' : ''}
+        </p>
+        <p><b>Profile ID:</b> ${reel.id}</p>
+        <p><b>Title:</b> ${reel.title}</p>
+        ${hasIG ? `<div class="url-info"><i class="fab fa-instagram"></i> ${reel.instagramUrl.substring(0,50)}...</div>` : ''}
+        <div class="url-info"><i class="fas fa-link"></i> ${reel.media.substring(0,60)}...</div>
+        ${reel.lastRefreshed ? `<div class="url-info"><i class="fas fa-sync-alt"></i> ${new Date(reel.lastRefreshed).toLocaleString()}</div>` : ''}
+        <div class="video-container">
+            <video controls preload="metadata"><source src="${reel.media}" type="video/mp4"></video>
+        </div>
+        ${hasIG ? `<button class="refresh-btn" onclick="refreshReel('${reel.reelId}')"><i class="fas fa-sync-alt"></i> Refresh</button>` : ''}
+        <button class="delete-btn" onclick="deleteReel('${reel.reelId}')"><i class="fas fa-trash"></i> Delete</button>
+    `;
+    list.appendChild(item);
+}
+
+async function searchReel() {
+    const search = document.getElementById('reel-search-id').value.trim().toLowerCase();
+    allReels = search ? originalReels.filter(r => 
+        r.id.toLowerCase().includes(search) || 
+        r.reelId.toLowerCase().includes(search) ||
+        r.title.toLowerCase().includes(search)
+    ) : JSON.parse(JSON.stringify(originalReels));
+    reelCurrentPage = 1;
+    updateReelPage();
+}
+
+function deleteReel(reelId) {
+    if (!confirm('Delete?')) return;
+    
+    const idx = allReels.findIndex(r => r.reelId === reelId);
+    const origIdx = originalReels.findIndex(r => r.reelId === reelId);
+    
+    if (idx === -1) return showMessage("Not found", "error", "reel");
+    
+    allReels.splice(idx, 1);
+    if (origIdx !== -1) originalReels.splice(origIdx, 1);
+    
+    showMessage("Deleted. Save to GitHub.", "success", "reel");
+    updateReelPage();
+}
+
+async function addReel() {
+    const id = document.getElementById('reel-id').value.trim();
+    const urlInput = document.getElementById('video-url').value.trim();
+    const title = document.getElementById('title').value.trim();
+
+    if (!id || !urlInput || !title) return showMessage("Fill all fields!", "error", 'reel');
+    if (!isValidUrl(urlInput)) return showMessage("Invalid URL!", "error", 'reel');
+
+    let videoUrl, instagramUrl = null;
+
+    if (isInstagramUrl(urlInput)) {
+        instagramUrl = urlInput;
+        try {
+            showLoading(true);
+            videoUrl = await fetchInstagramVideo(instagramUrl);
+            showLoading(false);
+            showMessage("Fetched from Instagram!", "success", 'reel');
+        } catch (error) {
+            showLoading(false);
+            return showMessage(error.message, "error", 'reel');
+        }
+    } else {
+        videoUrl = urlInput;
+    }
+
+    const newReel = { 
+        reelId: generateUniqueId(),
+        id, title, 
+        media: videoUrl,
+        ...(instagramUrl && { instagramUrl }),
+        addedDate: new Date().toISOString(),
+        lastRefreshed: new Date().toISOString()
+    };
+
+    allReels.unshift(newReel);
+    originalReels.unshift(newReel);
+
+    document.getElementById('reel-id').value = '';
+    document.getElementById('video-url').value = '';
+    document.getElementById('title').value = '';
+
+    showMessage("Added! Save to GitHub.", "success", "reel");
+    updateReelPage();
+}
+
+function updateReelPagination() {
+    const total = Math.ceil(allReels.length / itemsPerPage) || 1;
+    document.getElementById('reel-page-info').textContent = `Page ${reelCurrentPage} of ${total}`;
+    document.getElementById('reel-prev-btn').disabled = reelCurrentPage === 1;
+    document.getElementById('reel-next-btn').disabled = reelCurrentPage === total;
+}
+
+function reelNextPage() {
+    if (reelCurrentPage < Math.ceil(allReels.length / itemsPerPage)) { 
+        reelCurrentPage++; updateReelPage(); 
+    }
+}
+
+function reelPrevPage() {
+    if (reelCurrentPage > 1) { 
+        reelCurrentPage--; updateReelPage(); 
+    }
+}
+
+// ===== PROFILE FUNCTIONS =====
+function updateProfilePage() {
+    const list = document.getElementById('profile-list');
+    list.innerHTML = "";
+
+    if (!allProfiles.length) {
+        list.innerHTML = '<p style="text-align:center;opacity:0.7;">No profiles. Add one!</p>';
+        updateProfilePagination();
+        return;
+    }
+
+    const start = (profileCurrentPage - 1) * itemsPerPage;
+    const end = Math.min(start + itemsPerPage, allProfiles.length);
+    allProfiles.slice(start, end).forEach(renderProfile);
+    updateProfilePagination();
+}
+
+function renderProfile(profile) {
+    const list = document.getElementById('profile-list');
+    const item = document.createElement('div');
+    item.classList.add('profile-item');
+    item.innerHTML = `
+        <p><b>Profile ID:</b> ${profile.id}</p>
+        <p><b>Username:</b> ${profile.username}</p>
+        <p><b>Verified:</b> ${profile.verified ? '<i class="fas fa-check-circle" style="color:#0f0;"></i> Yes' : '<i class="fas fa-times-circle" style="color:#f00;"></i> No'}</p>
+        <img src="${profile.profile}" alt="${profile.username}" onerror="this.src='https://via.placeholder.com/100';">
+        <button class="delete-btn" onclick="deleteProfile('${profile.id}')"><i class="fas fa-trash"></i> Delete</button>
+    `;
+    list.appendChild(item);
+}
+
+async function searchProfile() {
+    const search = document.getElementById('profile-search-id').value.trim().toLowerCase();
+    allProfiles = search ? originalProfiles.filter(p => 
+        p.id.toLowerCase().includes(search) || 
+        p.username.toLowerCase().includes(search)
+    ) : JSON.parse(JSON.stringify(originalProfiles));
+    profileCurrentPage = 1;
+    updateProfilePage();
+}
+
+function deleteProfile(profileId) {
+    if (!confirm('Delete?')) return;
+    
+    const idx = allProfiles.findIndex(p => p.id === profileId);
+    const origIdx = originalProfiles.findIndex(p => p.id === profileId);
+    
+    if (idx === -1) return showMessage("Not found", "error", "profile");
+    
+    allProfiles.splice(idx, 1);
+    if (origIdx !== -1) originalProfiles.splice(origIdx, 1);
+    
+    showMessage("Deleted. Save to GitHub.", "success", "profile");
+    updateProfilePage();
+}
+
+function addProfile() {
+    const id = document.getElementById('profile-id').value.trim();
+    const username = document.getElementById('username').value.trim();
+    const profileUrl = document.getElementById('profile-url').value.trim();
+    const verified = document.getElementById('verified').checked;
+
+    if (!id || !username || !profileUrl) return showMessage("Fill all fields!", "error", 'profile');
+    if (!isValidUrl(profileUrl)) return showMessage("Invalid URL!", "error", 'profile');
+    if (allProfiles.some(p => p.id === id)) return showMessage("ID exists!", "error", 'profile');
+
+    allProfiles.push({ id, username, profile: profileUrl, verified });
+    originalProfiles.push({ id, username, profile: profileUrl, verified });
+
+    document.getElementById('profile-id').value = '';
+    document.getElementById('username').value = '';
+    document.getElementById('profile-url').value = '';
+    document.getElementById('verified').checked = false;
+
+    showMessage("Added! Save to GitHub.", "success", "profile");
+    updateProfilePage();
+}
+
+function updateProfilePagination() {
+    const total = Math.ceil(allProfiles.length / itemsPerPage) || 1;
+    document.getElementById('profile-page-info').textContent = `Page ${profileCurrentPage} of ${total}`;
+    document.getElementById('profile-prev-btn').disabled = profileCurrentPage === 1;
+    document.getElementById('profile-next-btn').disabled = profileCurrentPage === total;
+}
+
+function profileNextPage() {
+    if (profileCurrentPage < Math.ceil(allProfiles.length / itemsPerPage)) { 
+        profileCurrentPage++; updateProfilePage(); 
+    }
+}
+
+function profilePrevPage() {
+    if (profileCurrentPage > 1) { 
+        profileCurrentPage--; updateProfilePage(); 
+    }
+}
+
+// ===== UTILITIES =====
+function isValidUrl(str) {
+    try { new URL(str); return true; } catch { return false; }
+}
+
+function showMessage(msg, type, section) {
+    const div = document.getElementById(`${section}-message`);
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'exclamation-triangle';
+    div.innerHTML = `<div class="message ${type}"><i class="fas fa-${icon}"></i> ${msg}</div>`;
+    setTimeout(() => div.innerHTML = "", 6000);
+}
+
+// ===== INIT =====
+window.onload = () => { loadReels(); loadProfiles(); };
+</script>
+</body>
+</html>
