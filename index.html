@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Reels Player</title>
     <link rel="icon" href="https://marya-hosting.pages.dev/btfstorage/file/idmha4pww8ow0y0f.jpg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -17,8 +18,6 @@
             --red: #EF4444;
             --white: #FFFFFF;
             --dark: #000000;
-            --glass: rgba(139, 92, 246, 0.15);
-            --border: rgba(139, 92, 246, 0.3);
         }
 
         body, html {
@@ -29,16 +28,57 @@
             overflow: hidden;
             -webkit-user-select: none;
             user-select: none;
-            touch-action: manipulation;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
+        /* Intro Screen */
+        #intro-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: var(--dark);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+
+        #intro-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #intro-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .skip-intro {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(139, 92, 246, 0.8);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 10000;
+        }
+
+        /* Main Container */
         #reels-container {
             width: 100%;
             height: 100vh;
-            overflow: hidden;
             position: relative;
             background: var(--dark);
+            overflow: hidden;
         }
 
         .video-container {
@@ -54,114 +94,86 @@
         }
 
         video {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
             background: var(--dark);
         }
 
-        /* Top Bar */
+        /* Top Bar - Instagram Style */
         .top-bar {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
-            height: 65px;
-            background: linear-gradient(180deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.6) 70%, transparent 100%);
+            height: 60px;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
             backdrop-filter: blur(10px);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
+            padding: 0 16px;
             z-index: 100;
         }
 
         .logo-section {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .app-logo {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
             object-fit: cover;
-            border: 2px solid var(--purple);
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
         }
 
         .app-title {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 700;
             background: linear-gradient(135deg, var(--purple), var(--red));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
 
         .search-btn {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--border);
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.3s ease;
+            color: var(--white);
+            font-size: 20px;
         }
 
-        .search-btn:active {
-            transform: scale(0.95);
-            background: var(--purple);
-        }
-
-        .search-icon {
-            width: 20px;
-            height: 20px;
-            stroke: var(--white);
-            stroke-width: 2;
-            fill: none;
-        }
-
-        /* User Info */
-        .user-info-section {
+        /* User Info - Instagram Style */
+        .user-info {
             position: fixed;
-            bottom: 70px;
-            left: 20px;
-            right: 20px;
+            bottom: 80px;
+            left: 16px;
+            right: 16px;
             z-index: 50;
-            pointer-events: none;
         }
 
         .user-header {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 10px;
-            pointer-events: auto;
+            gap: 10px;
+            margin-bottom: 8px;
         }
 
         .profile-pic {
-            width: 48px;
-            height: 48px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
-            border: 2.5px solid var(--white);
+            border: 2px solid var(--white);
             object-fit: cover;
             cursor: pointer;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
-            transition: transform 0.2s ease;
         }
 
-        .profile-pic:active {
-            transform: scale(0.95);
-        }
-
-        .username-section {
+        .username-container {
             display: flex;
             align-items: center;
             gap: 6px;
@@ -169,66 +181,44 @@
         }
 
         .username {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 700;
             color: var(--white);
-            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
         }
 
-        .verify-badge {
-            width: 18px;
-            height: 18px;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+        .verify-icon {
+            width: 16px;
+            height: 16px;
         }
 
         .video-title {
             font-size: 14px;
-            line-height: 1.5;
-            color: rgba(255, 255, 255, 0.95);
-            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
-            max-height: 42px;
-            overflow: hidden;
+            line-height: 1.4;
+            color: var(--white);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
-            pointer-events: auto;
-            cursor: pointer;
+            overflow: hidden;
         }
 
-        /* Progress Bar */
-        .progress-container {
+        /* Progress Bar - Instagram Style */
+        .progress-bar {
             position: fixed;
             bottom: 0;
             left: 0;
-            right: 0;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
+            width: 100%;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.3);
             z-index: 60;
-            cursor: pointer;
-            transition: height 0.2s ease;
-        }
-
-        .progress-container.active {
-            height: 8px;
         }
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, var(--purple), var(--red));
             width: 0%;
+            background: linear-gradient(90deg, var(--purple), var(--red));
             transition: width 0.1s linear;
-            position: relative;
-        }
-
-        .progress-fill::after {
-            content: '';
-            position: absolute;
-            right: 0;
-            top: 0;
-            width: 4px;
-            height: 100%;
-            background: var(--white);
-            border-radius: 2px;
         }
 
         /* Search Modal */
@@ -239,42 +229,33 @@
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.95);
-            backdrop-filter: blur(10px);
             z-index: 200;
             display: none;
             align-items: center;
             justify-content: center;
-            animation: fadeIn 0.3s ease;
         }
 
         .search-modal.active {
             display: flex;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
         .search-content {
-            background: rgba(30, 30, 30, 0.98);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 30px 25px;
+            background: rgba(20, 20, 20, 0.95);
+            border-radius: 16px;
+            padding: 24px;
             width: 90%;
             max-width: 400px;
-            backdrop-filter: blur(20px);
         }
 
         .search-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .search-title {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             color: var(--white);
         }
@@ -283,95 +264,35 @@
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            background: var(--glass);
+            background: rgba(255, 255, 255, 0.1);
             border: none;
             color: var(--white);
-            font-size: 22px;
-            line-height: 1;
+            font-size: 20px;
             cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .close-btn:active {
-            background: var(--red);
-            transform: rotate(90deg);
         }
 
         .search-input {
             width: 100%;
-            padding: 15px 18px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 2px solid var(--border);
-            border-radius: 12px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
             color: var(--white);
             font-size: 15px;
             outline: none;
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
-        }
-
-        .search-input:focus {
-            border-color: var(--purple);
-            background: rgba(139, 92, 246, 0.12);
+            margin-bottom: 12px;
         }
 
         .search-submit {
             width: 100%;
-            padding: 15px;
+            padding: 12px;
             background: linear-gradient(135deg, var(--purple), var(--red));
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             color: var(--white);
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .search-submit:active {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 25px rgba(139, 92, 246, 0.5);
-        }
-
-        /* Notification */
-        .notification {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.92);
-            color: var(--white);
-            padding: 14px 24px;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 600;
-            z-index: 250;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border);
-        }
-
-        .notification.show {
-            opacity: 1;
-        }
-
-        /* Like Animation */
-        .like-animation {
-            position: absolute;
-            width: 100px;
-            height: 100px;
-            opacity: 0;
-            z-index: 150;
-            pointer-events: none;
-            animation: likePop 0.6s ease-out forwards;
-        }
-
-        @keyframes likePop {
-            0% { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(0deg); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(15deg); }
-            100% { opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
         }
 
         /* Loading */
@@ -383,23 +304,20 @@
             bottom: 0;
             background: var(--dark);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 300;
-            transition: opacity 0.5s ease;
         }
 
         .loading.hidden {
-            opacity: 0;
-            pointer-events: none;
+            display: none;
         }
 
         .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(139, 92, 246, 0.2);
-            border-top: 4px solid var(--purple);
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(139, 92, 246, 0.3);
+            border-top: 3px solid var(--purple);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
@@ -409,58 +327,59 @@
             100% { transform: rotate(360deg); }
         }
 
-        .loading-text {
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
             color: var(--white);
+            padding: 12px 20px;
+            border-radius: 20px;
             font-size: 14px;
-            margin-top: 20px;
-            opacity: 0.7;
+            z-index: 250;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
 
-        /* Responsive */
-        @media (max-width: 480px) {
-            .top-bar {
-                height: 60px;
-                padding: 0 15px;
-            }
+        .notification.show {
+            opacity: 1;
+        }
 
-            .app-logo {
-                width: 36px;
-                height: 36px;
-            }
+        /* Like Animation */
+        .like-animation {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            opacity: 0;
+            z-index: 150;
+            pointer-events: none;
+            animation: likePop 0.6s ease-out;
+        }
 
-            .app-title {
-                font-size: 18px;
-            }
-
-            .user-info-section {
-                bottom: 65px;
-                left: 15px;
-                right: 15px;
-            }
-
-            .profile-pic {
-                width: 44px;
-                height: 44px;
-            }
-
-            .username {
-                font-size: 15px;
-            }
-
-            .video-title {
-                font-size: 13px;
-            }
+        @keyframes likePop {
+            0% { opacity: 0; transform: scale(0); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0; transform: scale(1); }
         }
     </style>
 </head>
 <body oncontextmenu="return false;">
-    <!-- Loading Screen -->
-    <div class="loading" id="loading">
-        <div class="spinner"></div>
-        <div class="loading-text">Loading...</div>
+    <!-- Intro Screen -->
+    <div id="intro-screen">
+        <video id="intro-video" playsinline autoplay muted>
+            <source src="https://marya-hosting.pages.dev/btfstorage/file/idmhbvy5w7efdjbh.mp4" type="video/mp4">
+        </video>
+        <button class="skip-intro" onclick="skipIntro()">Skip</button>
     </div>
 
-    <!-- Reels Container -->
+    <!-- Loading -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Main Container -->
     <div id="reels-container"></div>
 
     <!-- Top Bar -->
@@ -470,27 +389,24 @@
             <div class="app-title">Reels</div>
         </div>
         <div class="search-btn" onclick="openSearch()">
-            <svg class="search-icon" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
-            </svg>
+            <i class="fas fa-search"></i>
         </div>
     </div>
 
-    <!-- User Info Section -->
-    <div class="user-info-section">
+    <!-- User Info -->
+    <div class="user-info">
         <div class="user-header">
-            <img class="profile-pic" id="profilePic" src="https://i.postimg.cc/3Rh3SjRb/image.jpg" alt="Profile">
-            <div class="username-section" id="usernameSection">
+            <img class="profile-pic" id="profilePic" src="" alt="">
+            <div class="username-container" id="usernameContainer">
                 <span class="username" id="username">Loading...</span>
-                <img class="verify-badge" id="verifyBadge" src="https://i.postimg.cc/28DChkBZ/1000062918-removebg-preview-min.png" alt="Verified">
+                <img class="verify-icon" id="verifyIcon" src="https://i.postimg.cc/28DChkBZ/1000062918-removebg-preview-min.png" alt="" style="display: none;">
             </div>
         </div>
-        <div class="video-title" id="videoTitle" onclick="showFullTitle()">Loading...</div>
+        <div class="video-title" id="videoTitle">Loading...</div>
     </div>
 
     <!-- Progress Bar -->
-    <div class="progress-container" id="progressContainer">
+    <div class="progress-bar">
         <div class="progress-fill" id="progressFill"></div>
     </div>
 
@@ -499,15 +415,11 @@
         <div class="search-content">
             <div class="search-header">
                 <div class="search-title">Search Reel</div>
-                <button class="close-btn" onclick="closeSearch()">&times;</button>
+                <button class="close-btn" onclick="closeSearch()">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <input 
-                type="text" 
-                class="search-input" 
-                id="searchInput" 
-                placeholder="Enter Reel ID"
-                onkeypress="if(event.key==='Enter') searchReel()"
-            >
+            <input type="text" class="search-input" id="searchInput" placeholder="Enter Reel ID" onkeypress="if(event.key==='Enter') searchReel()">
             <button class="search-submit" onclick="searchReel()">Search</button>
         </div>
     </div>
@@ -517,52 +429,51 @@
 
     <script>
         // Global Variables
-        let fullTitle = "";
-        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false;
         let allReels = [];
-        let profiles = [];
+        let allProfiles = [];
         let currentIndex = 0;
-        let touchStartY = 0;
-        let touchStartX = 0;
-        let isTransitioning = false;
         let currentVideo = null;
-        let holdTimer = null;
-        let likes = new Map();
+        let isTransitioning = false;
+        let touchStartY = 0;
         let lastTap = 0;
-        let isScrubbing = false;
+        let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true';
 
         // DOM Elements
-        const container = document.getElementById('reels-container');
+        const introScreen = document.getElementById('intro-screen');
+        const introVideo = document.getElementById('intro-video');
         const loading = document.getElementById('loading');
-        const notification = document.getElementById('notification');
+        const container = document.getElementById('reels-container');
         const searchModal = document.getElementById('searchModal');
         const searchInput = document.getElementById('searchInput');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressFill = document.getElementById('progressFill');
+        const notification = document.getElementById('notification');
         const profilePic = document.getElementById('profilePic');
         const username = document.getElementById('username');
-        const usernameSection = document.getElementById('usernameSection');
-        const verifyBadge = document.getElementById('verifyBadge');
+        const usernameContainer = document.getElementById('usernameContainer');
+        const verifyIcon = document.getElementById('verifyIcon');
         const videoTitle = document.getElementById('videoTitle');
+        const progressFill = document.getElementById('progressFill');
 
-        // Initial video configuration
-        const INITIAL_VIDEO = {
-            reelId: 'init',
-            id: 'default',
-            title: 'Welcome to Reels Player',
-            media: 'https://marya-hosting.pages.dev/btfstorage/file/idmha4q139i9te1a.mp4',
-            username: 'Reels',
-            profile: 'https://marya-hosting.pages.dev/btfstorage/file/idmha4pww8ow0y0f.jpg',
-            verified: true
-        };
+        // Skip Intro
+        function skipIntro() {
+            introVideo.pause();
+            introScreen.classList.add('hidden');
+            setTimeout(() => {
+                introScreen.style.display = 'none';
+            }, 500);
+        }
 
-        // Notification System
-        function showNotification(message, duration = 2000) {
+        // Intro Video End Event
+        introVideo.addEventListener('ended', () => {
+            skipIntro();
+        });
+
+        // Show Notification
+        function showNotification(message) {
             notification.textContent = message;
             notification.classList.add('show');
             setTimeout(() => {
                 notification.classList.remove('show');
-            }, duration);
+            }, 2000);
         }
 
         // Search Functions
@@ -579,16 +490,13 @@
         function searchReel() {
             const reelId = searchInput.value.trim();
             if (!reelId) {
-                showNotification('Please enter a Reel ID');
+                showNotification('Enter Reel ID');
                 return;
             }
 
-            const foundIndex = allReels.findIndex(reel => 
-                reel.reelId.toLowerCase() === reelId.toLowerCase()
-            );
-
-            if (foundIndex !== -1) {
-                currentIndex = foundIndex;
+            const index = allReels.findIndex(r => r.reelId === reelId);
+            if (index !== -1) {
+                currentIndex = index;
                 loadReel(currentIndex);
                 closeSearch();
                 showNotification('Reel loaded');
@@ -597,63 +505,44 @@
             }
         }
 
-        // Audio Management
-        function setAudioPersistence() {
-            localStorage.setItem('audioEnabled', 'true');
-            isAudioEnabled = true;
-            if (currentVideo) {
-                currentVideo.muted = false;
-                currentVideo.play().catch(console.log);
-            }
-        }
-
-        // Load Metadata
+        // Load Metadata from GitHub
         async function loadMetadata() {
             try {
-                const [profilesResponse, reelsResponse] = await Promise.all([
-                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json')
-                        .then(res => res.ok ? res.json() : { profiles: [] }),
-                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json')
-                        .then(res => res.ok ? res.json() : { reels: [] })
-                ]);
+                console.log('Loading metadata...');
 
-                profiles = profilesResponse.profiles || [];
-                allReels = reelsResponse.reels || [];
+                // Fetch reels.json
+                const reelsResponse = await fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json');
+                const reelsData = await reelsResponse.json();
+                allReels = reelsData.reels || [];
 
-                // Add initial video at the start
-                if (!allReels.find(r => r.reelId === INITIAL_VIDEO.reelId)) {
-                    allReels.unshift(INITIAL_VIDEO);
-                }
+                console.log('Loaded reels:', allReels.length);
+
+                // Fetch profiles.json
+                const profilesResponse = await fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json');
+                const profilesData = await profilesResponse.json();
+                allProfiles = profilesData.profiles || [];
+
+                console.log('Loaded profiles:', allProfiles.length);
 
                 if (allReels.length === 0) {
-                    allReels = [INITIAL_VIDEO];
+                    showNotification('No reels available');
+                    return false;
                 }
-
-                // Initialize likes
-                allReels.forEach(reel => {
-                    if (!likes.has(reel.reelId)) {
-                        likes.set(reel.reelId, { count: Math.floor(Math.random() * 1000), liked: false });
-                    }
-                });
 
                 return true;
             } catch (error) {
-                console.error('Metadata load error:', error);
-                allReels = [INITIAL_VIDEO];
+                console.error('Error loading metadata:', error);
+                showNotification('Failed to load reels');
                 return false;
             }
         }
 
-        // Get Profile Data
-        function getProfileById(id) {
-            const profile = profiles.find(p => p.id === id);
-            if (profile) return profile;
-
-            // Return default for initial video
-            if (id === 'default') {
-                return INITIAL_VIDEO;
+        // Get Profile by ID
+        function getProfile(userId) {
+            const profile = allProfiles.find(p => p.id === userId);
+            if (profile) {
+                return profile;
             }
-
             return {
                 username: 'User',
                 profile: 'https://i.postimg.cc/3Rh3SjRb/image.jpg',
@@ -661,68 +550,60 @@
             };
         }
 
-        // Update Metadata Display
-        function updateMetadata(reel) {
-            fullTitle = reel.title;
+        // Update UI with Reel Data
+        function updateUI(reel) {
+            const profile = getProfile(reel.id);
+
+            profilePic.src = profile.profile;
+            username.textContent = profile.username;
             videoTitle.textContent = reel.title;
 
-            const profileData = getProfileById(reel.id);
-            username.textContent = profileData.username || reel.username || 'User';
-            profilePic.src = profileData.profile || reel.profile || 'https://i.postimg.cc/3Rh3SjRb/image.jpg';
-
-            const isVerified = profileData.verified !== undefined ? profileData.verified : reel.verified;
-            verifyBadge.style.display = isVerified ? 'inline' : 'none';
-
-            profilePic.dataset.id = reel.id;
-            usernameSection.dataset.id = reel.id;
-        }
-
-        // Show Full Title
-        function showFullTitle() {
-            if (fullTitle) {
-                alert(fullTitle);
+            if (profile.verified) {
+                verifyIcon.style.display = 'inline';
+            } else {
+                verifyIcon.style.display = 'none';
             }
+
+            profilePic.dataset.userId = reel.id;
+            usernameContainer.dataset.userId = reel.id;
         }
 
         // Create Video Element
-        function createVideoElement(reel, index) {
+        function createVideoElement(reel) {
             const div = document.createElement('div');
             div.className = 'video-container';
 
             const video = document.createElement('video');
-            video.playsInline = true;
-            video.controls = false;
-            video.muted = !isAudioEnabled;
-            video.dataset.index = index;
             video.src = reel.media;
-            video.preload = 'auto';
+            video.playsInline = true;
+            video.loop = true;
+            video.muted = !isAudioEnabled;
             video.setAttribute('playsinline', '');
             video.setAttribute('webkit-playsinline', '');
-            video.loop = true;
 
-            // Video Events
             video.addEventListener('canplay', () => {
                 currentVideo = video;
-                updateMetadata(reel);
+                updateUI(reel);
                 video.play().catch(console.log);
             });
 
             video.addEventListener('timeupdate', () => {
-                if (!video.paused && !isScrubbing) {
-                    const progress = (video.currentTime / video.duration) * 100;
-                    progressFill.style.width = progress + '%';
-                }
+                const progress = (video.currentTime / video.duration) * 100;
+                progressFill.style.width = progress + '%';
             });
 
             video.addEventListener('error', (e) => {
                 console.error('Video error:', e);
-                showNotification('Video load error');
-                setTimeout(() => nextReel(), 1500);
+                showNotification('Video load failed');
+                setTimeout(() => nextReel(), 1000);
             });
 
-            video.addEventListener('touchstart', () => {
+            video.addEventListener('click', () => {
                 if (!isAudioEnabled) {
-                    setAudioPersistence();
+                    video.muted = false;
+                    isAudioEnabled = true;
+                    localStorage.setItem('audioEnabled', 'true');
+                    showNotification('Sound on');
                 }
             });
 
@@ -736,132 +617,81 @@
 
             if (currentVideo) {
                 currentVideo.pause();
-                currentVideo.muted = true;
             }
 
             container.innerHTML = '';
             progressFill.style.width = '0%';
 
             const reel = allReels[index];
-            const videoElement = createVideoElement(reel, index);
+            console.log('Loading reel:', reel.reelId);
+
+            const videoElement = createVideoElement(reel);
             container.appendChild(videoElement);
 
-            currentVideo = videoElement.querySelector('video');
-            currentVideo.muted = !isAudioEnabled;
-            currentVideo.play().catch(console.log);
-            updateMetadata(reel);
-
-            // Update URL
             window.history.pushState({}, '', `?reelId=${reel.reelId}`);
         }
 
         // Navigation
         function nextReel() {
             if (isTransitioning) return;
-            if (currentIndex + 1 < allReels.length) {
-                isTransitioning = true;
-                currentIndex++;
-                loadReel(currentIndex);
-                setTimeout(() => { isTransitioning = false; }, 300);
-            } else {
+            isTransitioning = true;
+
+            currentIndex++;
+            if (currentIndex >= allReels.length) {
                 currentIndex = 0;
-                loadReel(currentIndex);
-                showNotification('Back to start');
             }
+
+            loadReel(currentIndex);
+            setTimeout(() => { isTransitioning = false; }, 300);
         }
 
         function prevReel() {
             if (isTransitioning) return;
-            if (currentIndex > 0) {
-                isTransitioning = true;
-                currentIndex--;
-                loadReel(currentIndex);
-                setTimeout(() => { isTransitioning = false; }, 300);
-            } else {
+            isTransitioning = true;
+
+            currentIndex--;
+            if (currentIndex < 0) {
                 currentIndex = allReels.length - 1;
-                loadReel(currentIndex);
-                showNotification('Last reel');
             }
+
+            loadReel(currentIndex);
+            setTimeout(() => { isTransitioning = false; }, 300);
         }
 
         // Like Animation
-        function showLikeAnimation(x, y) {
-            const likeImg = document.createElement('img');
-            likeImg.src = 'https://i.postimg.cc/pr68HrJm/1000063176-removebg-preview.png';
-            likeImg.className = 'like-animation';
-            likeImg.style.left = x + 'px';
-            likeImg.style.top = y + 'px';
-            container.appendChild(likeImg);
-
-            const reel = allReels[currentIndex];
-            const reelLikes = likes.get(reel.reelId);
-            if (reelLikes) {
-                reelLikes.count += 1;
-                reelLikes.liked = true;
-            }
-
-            setTimeout(() => likeImg.remove(), 600);
+        function showLike(x, y) {
+            const img = document.createElement('img');
+            img.src = 'https://i.postimg.cc/pr68HrJm/1000063176-removebg-preview.png';
+            img.className = 'like-animation';
+            img.style.left = x + 'px';
+            img.style.top = y + 'px';
+            container.appendChild(img);
+            setTimeout(() => img.remove(), 600);
         }
 
         // Touch Events
         container.addEventListener('touchstart', (e) => {
             touchStartY = e.touches[0].clientY;
-            touchStartX = e.touches[0].clientX;
-
-            clearTimeout(holdTimer);
-            holdTimer = setTimeout(() => {
-                if (currentVideo) {
-                    currentVideo.pause();
-                    isScrubbing = true;
-                    progressContainer.classList.add('active');
-                }
-            }, 500);
-        });
-
-        container.addEventListener('touchmove', (e) => {
-            if (isScrubbing && currentVideo) {
-                const touchX = e.touches[0].clientX;
-                const deltaX = touchX - touchStartX;
-                const screenWidth = window.innerWidth;
-                const progressChange = deltaX / (screenWidth * 2);
-                const newTime = Math.max(0, Math.min(currentVideo.duration, 
-                    currentVideo.currentTime + (progressChange * currentVideo.duration)));
-                currentVideo.currentTime = newTime;
-            }
         });
 
         container.addEventListener('touchend', (e) => {
-            if (isTransitioning) return;
-
             const touchEndY = e.changedTouches[0].clientY;
-            const swipeDistance = touchStartY - touchEndY;
+            const delta = touchStartY - touchEndY;
 
-            clearTimeout(holdTimer);
-            progressContainer.classList.remove('active');
-
-            if (isScrubbing) {
-                if (currentVideo) {
-                    currentVideo.play().catch(console.log);
-                }
-                isScrubbing = false;
-                return;
-            }
-
-            // Handle double tap for like
+            // Check double tap
             const now = Date.now();
-            const timeSinceLastTap = now - lastTap;
-            if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
-                const touchX = e.changedTouches[0].clientX;
-                const touchY = e.changedTouches[0].clientY;
-                showLikeAnimation(touchX, touchY);
+            if (now - lastTap < 300) {
+                const x = e.changedTouches[0].clientX;
+                const y = e.changedTouches[0].clientY;
+                showLike(x, y);
                 lastTap = 0;
                 return;
             }
             lastTap = now;
 
-            // Handle swipe navigation
-            if (Math.abs(swipeDistance) > 50) {
-                if (swipeDistance > 0) {
+            // Swipe navigation
+            if (Math.abs(delta) > 50) {
+                if (delta > 0) {
                     nextReel();
                 } else {
                     prevReel();
@@ -869,114 +699,87 @@
             }
         });
 
-        // Progress Bar Click
-        progressContainer.addEventListener('click', (e) => {
-            if (currentVideo && currentVideo.duration) {
-                const rect = progressContainer.getBoundingClientRect();
-                const percent = (e.clientX - rect.left) / rect.width;
-                currentVideo.currentTime = percent * currentVideo.duration;
-            }
-        });
-
         // Keyboard Controls
         document.addEventListener('keydown', (e) => {
-            switch(e.key) {
-                case 'ArrowUp':
-                    e.preventDefault();
-                    nextReel();
-                    break;
-                case 'ArrowDown':
-                    e.preventDefault();
-                    prevReel();
-                    break;
-                case ' ':
-                    e.preventDefault();
-                    if (currentVideo) {
-                        if (currentVideo.paused) {
-                            currentVideo.play();
-                        } else {
-                            currentVideo.pause();
-                        }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                nextReel();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                prevReel();
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                if (currentVideo) {
+                    if (currentVideo.paused) {
+                        currentVideo.play();
+                    } else {
+                        currentVideo.pause();
                     }
-                    break;
-                case '/':
-                    e.preventDefault();
-                    openSearch();
-                    break;
-                case 'Escape':
-                    if (searchModal.classList.contains('active')) {
-                        closeSearch();
-                    }
-                    break;
+                }
+            } else if (e.key === '/') {
+                e.preventDefault();
+                openSearch();
+            } else if (e.key === 'Escape') {
+                closeSearch();
             }
         });
 
         // Profile Click
         profilePic.addEventListener('click', () => {
-            const profileId = profilePic.dataset.id;
-            if (profileId) {
-                window.open(`/profiles.html?id=${profileId}`, '_blank');
+            const userId = profilePic.dataset.userId;
+            if (userId) {
+                window.open(`/profiles.html?id=${userId}`, '_blank');
             }
         });
 
-        usernameSection.addEventListener('click', () => {
-            const profileId = usernameSection.dataset.id;
-            if (profileId) {
-                window.open(`/profiles.html?id=${profileId}`, '_blank');
+        usernameContainer.addEventListener('click', () => {
+            const userId = usernameContainer.dataset.userId;
+            if (userId) {
+                window.open(`/profiles.html?id=${userId}`, '_blank');
             }
         });
 
-        // Initialize App
-        async function initApp() {
-            try {
-                await loadMetadata();
+        // Initialize
+        async function init() {
+            loading.classList.remove('hidden');
 
+            const success = await loadMetadata();
+
+            if (success) {
                 // Check URL for reelId
                 const urlParams = new URLSearchParams(window.location.search);
                 const reelId = urlParams.get('reelId');
 
                 if (reelId) {
-                    const foundIndex = allReels.findIndex(reel => reel.reelId === reelId);
-                    if (foundIndex !== -1) {
-                        currentIndex = foundIndex;
+                    const index = allReels.findIndex(r => r.reelId === reelId);
+                    if (index !== -1) {
+                        currentIndex = index;
                     }
                 }
 
                 loadReel(currentIndex);
-
-                setTimeout(() => {
-                    loading.classList.add('hidden');
-                }, 800);
-
-            } catch (error) {
-                console.error('Init error:', error);
-                loading.classList.add('hidden');
             }
+
+            loading.classList.add('hidden');
         }
 
-        // Browser Navigation
-        window.addEventListener('popstate', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const reelId = urlParams.get('reelId');
-            if (reelId) {
-                const foundIndex = allReels.findIndex(reel => reel.reelId === reelId);
-                if (foundIndex !== -1 && foundIndex !== currentIndex) {
-                    currentIndex = foundIndex;
-                    loadReel(currentIndex);
-                }
-            }
+        // Start when intro ends
+        introVideo.addEventListener('ended', () => {
+            setTimeout(init, 500);
         });
 
-        // Prevent context menu
-        document.addEventListener('contextmenu', (e) => e.preventDefault());
-        document.addEventListener('dragstart', (e) => e.preventDefault());
+        // Or skip intro
+        window.skipIntro = function() {
+            introVideo.pause();
+            introScreen.classList.add('hidden');
+            setTimeout(() => {
+                introScreen.style.display = 'none';
+                init();
+            }, 500);
+        };
 
-        // Start App
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initApp);
-        } else {
-            initApp();
-        }
+        // Prevent context menu
+        document.addEventListener('contextmenu', e => e.preventDefault());
     </script>
 </body>
 </html>
