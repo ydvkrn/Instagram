@@ -3,23 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Reel Of The Day - World's Best</title>
+    <title>Reels Player</title>
+    <link rel="icon" href="https://marya-hosting.pages.dev/btfstorage/file/idmha4pww8ow0y0f.jpg">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         :root {
-            --primary-red: #ff3040;
-            --primary-white: #ffffff;
-            --dark-bg: #000000;
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --gradient-primary: linear-gradient(135deg, #ff3040, #ff6b7a);
-            --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            --purple: #8B5CF6;
+            --red: #EF4444;
+            --white: #FFFFFF;
+            --dark: #000000;
+            --glass: rgba(139, 92, 246, 0.15);
+            --border: rgba(139, 92, 246, 0.3);
         }
 
         body, html {
             margin: 0;
             padding: 0;
             height: 100%;
-            background: var(--dark-bg);
+            background: var(--dark);
             overflow: hidden;
             -webkit-user-select: none;
             user-select: none;
@@ -32,7 +38,7 @@
             height: 100vh;
             overflow: hidden;
             position: relative;
-            background: var(--dark-bg);
+            background: var(--dark);
         }
 
         .video-container {
@@ -41,384 +47,361 @@
             height: 100vh;
             top: 0;
             left: 0;
-            background: var(--dark-bg);
+            background: var(--dark);
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
 
         video {
             max-width: 100%;
             max-height: 100%;
-            object-fit: cover;
-            display: block;
-            background: var(--dark-bg);
-            border-radius: 0;
-            transition: transform 0.3s ease, filter 0.2s ease;
-        }
-
-        video.zoomed {
-            transform: scale(1.1);
-            filter: brightness(1.2);
-        }
-
-        video.clean-mode {
             object-fit: contain;
+            display: block;
+            background: var(--dark);
         }
 
-        /* Advanced UI Controls */
-        .top-controls {
+        /* Top Bar */
+        .top-bar {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
-            height: 60px;
-            background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+            height: 65px;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.6) 70%, transparent 100%);
+            backdrop-filter: blur(10px);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 15px;
-            z-index: 20;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        .top-controls.hidden {
-            opacity: 0;
-            transform: translateY(-100%);
+            padding: 0 20px;
+            z-index: 100;
         }
 
         .logo-section {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .app-logo {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: var(--gradient-primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 16px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--purple);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
         }
 
-        .app-name {
-            color: white;
-            font-size: 18px;
-            font-weight: 600;
-            background: var(--gradient-primary);
+        .app-title {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--purple), var(--red));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
-        .top-actions {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .action-btn {
-            width: 40px;
-            height: 40px;
+        .search-btn {
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-size: 18px;
         }
 
-        .action-btn:hover, .action-btn:active {
-            transform: scale(1.1);
-            background: var(--primary-red);
+        .search-btn:active {
+            transform: scale(0.95);
+            background: var(--purple);
         }
 
-        /* Right Side Actions */
-        .right-actions {
+        .search-icon {
+            width: 20px;
+            height: 20px;
+            stroke: var(--white);
+            stroke-width: 2;
+            fill: none;
+        }
+
+        /* User Info */
+        .user-info-section {
             position: fixed;
-            right: 15px;
-            bottom: 100px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            z-index: 15;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        .right-actions.hidden {
-            opacity: 0;
-            transform: translateX(100%);
-        }
-
-        .side-action {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .side-action:hover {
-            transform: scale(1.15);
-            background: var(--primary-red);
-            box-shadow: 0 8px 25px rgba(255, 48, 64, 0.4);
-        }
-
-        .side-action.liked {
-            background: var(--primary-red);
-            animation: heartBeat 0.6s ease;
-        }
-
-        .side-action-count {
-            position: absolute;
-            bottom: -25px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 12px;
-            font-weight: 600;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
-        }
-
-        /* Enhanced User Info */
-        .user-info-container {
-            position: fixed;
-            bottom: 80px;
-            left: 15px;
-            right: 80px;
-            z-index: 10;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        .user-info-container.hidden {
-            opacity: 0;
-            transform: translateY(100%);
+            bottom: 70px;
+            left: 20px;
+            right: 20px;
+            z-index: 50;
+            pointer-events: none;
         }
 
         .user-header {
             display: flex;
             align-items: center;
+            gap: 12px;
             margin-bottom: 10px;
+            pointer-events: auto;
         }
 
         .profile-pic {
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
-            border: 3px solid white;
+            border: 2.5px solid var(--white);
+            object-fit: cover;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s ease;
         }
 
-        .profile-pic:hover {
-            transform: scale(1.1);
-            border-color: var(--primary-red);
+        .profile-pic:active {
+            transform: scale(0.95);
         }
 
-        .user-details {
-            margin-left: 12px;
-            flex: 1;
-        }
-
-        .username-row {
+        .username-section {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 4px;
+            gap: 6px;
+            cursor: pointer;
         }
 
         .username {
-            color: white;
             font-size: 16px;
             font-weight: 700;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+            color: var(--white);
+            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
         }
 
         .verify-badge {
             width: 18px;
             height: 18px;
-        }
-
-        .follow-btn {
-            padding: 6px 16px;
-            background: var(--gradient-primary);
-            color: white;
-            border: none;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .follow-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 15px rgba(255, 48, 64, 0.4);
-        }
-
-        .subtitle {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 14px;
-            font-weight: 500;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
         }
 
         .video-title {
-            color: white;
-            font-size: 15px;
-            line-height: 1.4;
-            margin-top: 8px;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
-            max-height: 60px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+            max-height: 42px;
             overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            pointer-events: auto;
             cursor: pointer;
-            transition: all 0.3s ease;
         }
 
-        .video-title:hover {
-            color: var(--primary-red);
-        }
-
-        .video-title.expanded {
-            max-height: none;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px;
-            border-radius: 8px;
-            backdrop-filter: blur(10px);
-        }
-
-        /* Advanced Progress Bar */
+        /* Progress Bar */
         .progress-container {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 6px;
+            height: 4px;
             background: rgba(255, 255, 255, 0.2);
-            z-index: 11;
+            z-index: 60;
+            cursor: pointer;
             transition: height 0.2s ease;
         }
 
-        .progress-container.highlighted {
-            height: 12px;
+        .progress-container.active {
+            height: 8px;
         }
 
-        .progress-bar {
+        .progress-fill {
             height: 100%;
-            background: var(--gradient-primary);
-            width: 0;
+            background: linear-gradient(90deg, var(--purple), var(--red));
+            width: 0%;
             transition: width 0.1s linear;
             position: relative;
-            overflow: hidden;
         }
 
-        .progress-bar::after {
+        .progress-fill::after {
             content: '';
             position: absolute;
-            top: 0;
             right: 0;
-            width: 20px;
+            top: 0;
+            width: 4px;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3));
-            animation: shimmer 2s infinite;
+            background: var(--white);
+            border-radius: 2px;
         }
 
-        /* Enhanced Animations */
-        @keyframes heartBeat {
-            0%, 100% { transform: scale(1); }
-            25% { transform: scale(1.2); }
-            50% { transform: scale(1.1); }
-            75% { transform: scale(1.25); }
+        /* Search Modal */
+        .search-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
         }
 
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
+        .search-modal.active {
+            display: flex;
         }
 
-        @keyframes popBounce {
-            0% { opacity: 0; transform: scale(0) rotate(0deg); }
-            50% { opacity: 1; transform: scale(1.4) rotate(180deg); }
-            75% { opacity: 0.9; transform: scale(1.2) rotate(270deg); }
-            100% { opacity: 0; transform: scale(1) rotate(360deg); }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
+        .search-content {
+            background: rgba(30, 30, 30, 0.98);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 30px 25px;
+            width: 90%;
+            max-width: 400px;
+            backdrop-filter: blur(20px);
+        }
+
+        .search-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .search-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--white);
+        }
+
+        .close-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--glass);
+            border: none;
+            color: var(--white);
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:active {
+            background: var(--red);
+            transform: rotate(90deg);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 18px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            color: var(--white);
+            font-size: 15px;
+            outline: none;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--purple);
+            background: rgba(139, 92, 246, 0.12);
+        }
+
+        .search-submit {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--purple), var(--red));
+            border: none;
+            border-radius: 12px;
+            color: var(--white);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-submit:active {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 25px rgba(139, 92, 246, 0.5);
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.92);
+            color: var(--white);
+            padding: 14px 24px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 250;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        /* Like Animation */
         .like-animation {
             position: absolute;
             width: 100px;
             height: 100px;
             opacity: 0;
-            z-index: 12;
+            z-index: 150;
             pointer-events: none;
-            animation: popBounce 0.8s ease-out forwards;
-            filter: drop-shadow(0 0 10px rgba(255, 48, 64, 0.8));
+            animation: likePop 0.6s ease-out forwards;
         }
 
-        /* Quality Indicator */
-        .quality-indicator {
+        @keyframes likePop {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(0deg); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(15deg); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+        }
+
+        /* Loading */
+        .loading {
             position: fixed;
-            top: 70px;
-            left: 15px;
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            padding: 4px 8px;
-            border-radius: 4px;
-            color: white;
-            font-size: 12px;
-            font-weight: 600;
-            z-index: 10;
-            transition: all 0.3s ease;
-        }
-
-        .quality-indicator.auto {
-            color: var(--primary-red);
-        }
-
-        /* Loading States */
-        .loading-overlay {
-            position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
+            background: var(--dark);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 25;
-            transition: opacity 0.3s ease;
+            z-index: 300;
+            transition: opacity 0.5s ease;
         }
 
-        .loading-spinner {
+        .loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
             width: 50px;
             height: 50px;
-            border: 3px solid rgba(255, 255, 255, 0.2);
-            border-top: 3px solid var(--primary-red);
+            border: 4px solid rgba(139, 92, 246, 0.2);
+            border-top: 4px solid var(--purple);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: spin 0.8s linear infinite;
         }
 
         @keyframes spin {
@@ -426,260 +409,118 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Gesture Hints */
-        .gesture-hint {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: rgba(255, 255, 255, 0.6);
+        .loading-text {
+            color: var(--white);
             font-size: 14px;
-            text-align: center;
-            z-index: 5;
-            animation: fadeInOut 3s ease-in-out;
-        }
-
-        @keyframes fadeInOut {
-            0%, 100% { opacity: 0; }
-            50% { opacity: 1; }
-        }
-
-        /* Interactive Elements */
-        .interactive-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 8;
-        }
-
-        .tap-zone {
-            position: absolute;
-            width: 33.33%;
-            height: 100%;
-            top: 0;
-        }
-
-        .tap-zone.left { left: 0; }
-        .tap-zone.center { left: 33.33%; }
-        .tap-zone.right { left: 66.66%; }
-
-        /* Speed Control */
-        .speed-control {
-            position: fixed;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            border-radius: 25px;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: 15;
-        }
-
-        .speed-control.visible {
-            opacity: 1;
-        }
-
-        .speed-btn {
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            color: white;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .speed-btn.active {
-            background: var(--primary-red);
-        }
-
-        /* Audio Visualizer */
-        .audio-visualizer {
-            position: fixed;
-            bottom: 6px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 2px;
-            z-index: 12;
+            margin-top: 20px;
             opacity: 0.7;
         }
 
-        .audio-bar {
-            width: 3px;
-            height: 10px;
-            background: var(--primary-red);
-            border-radius: 2px;
-            animation: audioWave 1s ease-in-out infinite alternate;
-        }
-
-        .audio-bar:nth-child(2) { animation-delay: 0.1s; }
-        .audio-bar:nth-child(3) { animation-delay: 0.2s; }
-        .audio-bar:nth-child(4) { animation-delay: 0.3s; }
-        .audio-bar:nth-child(5) { animation-delay: 0.4s; }
-
-        @keyframes audioWave {
-            0% { height: 5px; opacity: 0.5; }
-            100% { height: 20px; opacity: 1; }
-        }
-
-        /* Responsive Design */
+        /* Responsive */
         @media (max-width: 480px) {
-            .user-info-container {
-                right: 70px;
+            .top-bar {
+                height: 60px;
+                padding: 0 15px;
             }
-            
-            .side-action {
-                width: 45px;
-                height: 45px;
+
+            .app-logo {
+                width: 36px;
+                height: 36px;
             }
-            
+
+            .app-title {
+                font-size: 18px;
+            }
+
+            .user-info-section {
+                bottom: 65px;
+                left: 15px;
+                right: 15px;
+            }
+
             .profile-pic {
-                width: 45px;
-                height: 45px;
+                width: 44px;
+                height: 44px;
             }
-        }
 
-        /* Clean Mode */
-        .clean-mode .top-controls,
-        .clean-mode .right-actions,
-        .clean-mode .user-info-container,
-        .clean-mode .progress-container,
-        .clean-mode .quality-indicator,
-        .clean-mode .speed-control,
-        .clean-mode .audio-visualizer {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        /* Accessibility */
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
+            .username {
+                font-size: 15px;
             }
-        }
 
-        /* High contrast mode */
-        @media (prefers-contrast: high) {
-            .action-btn,
-            .side-action {
-                border: 2px solid white;
+            .video-title {
+                font-size: 13px;
             }
         }
     </style>
 </head>
 <body oncontextmenu="return false;">
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
+    <!-- Loading Screen -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading...</div>
     </div>
 
-    <!-- Main Container -->
+    <!-- Reels Container -->
     <div id="reels-container"></div>
-    
-    <!-- Top Controls -->
-    <div class="top-controls" id="topControls">
+
+    <!-- Top Bar -->
+    <div class="top-bar">
         <div class="logo-section">
-            <div class="app-logo">R</div>
-            <div class="app-name">ReelMaster</div>
+            <img src="https://marya-hosting.pages.dev/btfstorage/file/idmha4pww8ow0y0f.jpg" alt="Logo" class="app-logo">
+            <div class="app-title">Reels</div>
         </div>
-        <div class="top-actions">
-            <div class="action-btn" id="searchBtn" title="Search">🔍</div>
-            <div class="action-btn" id="cameraBtn" title="Camera">📸</div>
-            <div class="action-btn" id="settingsBtn" title="Settings">⚙️</div>
-        </div>
-    </div>
-    
-    <!-- Right Actions -->
-    <div class="right-actions" id="rightActions">
-        <div class="side-action" id="likeBtn" title="Like">
-            ❤️
-            <div class="side-action-count" id="likeCount">0</div>
-        </div>
-        <div class="side-action" id="commentBtn" title="Comment">
-            💬
-            <div class="side-action-count" id="commentCount">0</div>
-        </div>
-        <div class="side-action" id="shareBtn" title="Share">
-            📤
-            <div class="side-action-count" id="shareCount">0</div>
-        </div>
-        <div class="side-action" id="bookmarkBtn" title="Bookmark">
-            🔖
-        </div>
-        <div class="side-action" id="moreBtn" title="More">
-            ⋯
+        <div class="search-btn" onclick="openSearch()">
+            <svg class="search-icon" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+            </svg>
         </div>
     </div>
-    
-    <!-- User Info -->
-    <div class="user-info-container" id="userInfoContainer">
+
+    <!-- User Info Section -->
+    <div class="user-info-section">
         <div class="user-header">
-            <img class="profile-pic" id="profilePic" src="" alt="Profile">
-            <div class="user-details">
-                <div class="username-row">
-                    <span class="username" id="username">Loading...</span>
-                    <img class="verify-badge" id="verifyBadge" src="https://i.postimg.cc/28DChkBZ/1000062918-removebg-preview-min.png" alt="Verified">
-                    <button class="follow-btn" id="followBtn">Follow</button>
-                </div>
-                <div class="subtitle" id="subtitle">Content Creator</div>
+            <img class="profile-pic" id="profilePic" src="https://i.postimg.cc/3Rh3SjRb/image.jpg" alt="Profile">
+            <div class="username-section" id="usernameSection">
+                <span class="username" id="username">Loading...</span>
+                <img class="verify-badge" id="verifyBadge" src="https://i.postimg.cc/28DChkBZ/1000062918-removebg-preview-min.png" alt="Verified">
             </div>
         </div>
-        <div class="video-title" id="videoTitle" onclick="toggleTitle()">Loading...</div>
-    </div>
-    
-    <!-- Progress Container -->
-    <div class="progress-container" id="progressContainer">
-        <div class="progress-bar" id="progressBar"></div>
-    </div>
-    
-    <!-- Quality Indicator -->
-    <div class="quality-indicator" id="qualityIndicator">AUTO</div>
-    
-    <!-- Speed Control -->
-    <div class="speed-control" id="speedControl">
-        <div class="speed-btn" data-speed="0.5">0.5×</div>
-        <div class="speed-btn active" data-speed="1">1×</div>
-        <div class="speed-btn" data-speed="1.5">1.5×</div>
-        <div class="speed-btn" data-speed="2">2×</div>
-    </div>
-    
-    <!-- Audio Visualizer -->
-    <div class="audio-visualizer" id="audioVisualizer">
-        <div class="audio-bar"></div>
-        <div class="audio-bar"></div>
-        <div class="audio-bar"></div>
-        <div class="audio-bar"></div>
-        <div class="audio-bar"></div>
-    </div>
-    
-    <!-- Gesture Hint -->
-    <div class="gesture-hint" id="gestureHint">
-        Swipe up/down to navigate • Double tap to like • Long press for speed control
+        <div class="video-title" id="videoTitle" onclick="showFullTitle()">Loading...</div>
     </div>
 
+    <!-- Progress Bar -->
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <!-- Search Modal -->
+    <div class="search-modal" id="searchModal">
+        <div class="search-content">
+            <div class="search-header">
+                <div class="search-title">Search Reel</div>
+                <button class="close-btn" onclick="closeSearch()">&times;</button>
+            </div>
+            <input 
+                type="text" 
+                class="search-input" 
+                id="searchInput" 
+                placeholder="Enter Reel ID"
+                onkeypress="if(event.key==='Enter') searchReel()"
+            >
+            <button class="search-submit" onclick="searchReel()">Search</button>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+
     <script>
-        // Enhanced Global Variables
+        // Global Variables
         let fullTitle = "";
         let isAudioEnabled = localStorage.getItem('audioEnabled') === 'true' || false;
         let allReels = [];
+        let profiles = [];
         let currentIndex = 0;
         let touchStartY = 0;
         let touchStartX = 0;
@@ -689,491 +530,232 @@
         let likes = new Map();
         let lastTap = 0;
         let isScrubbing = false;
-        let isCleanMode = false;
-        let currentSpeed = 1;
-        let networkSpeed = 'high';
-        let autoQuality = true;
-        let isFollowing = new Map();
-        let watchTime = new Map();
-        let analytics = {
-            views: 0,
-            engagement: 0,
-            averageWatchTime: 0
-        };
 
-        // Enhanced DOM Elements
+        // DOM Elements
         const container = document.getElementById('reels-container');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const topControls = document.getElementById('topControls');
-        const rightActions = document.getElementById('rightActions');
-        const userInfoContainer = document.getElementById('userInfoContainer');
+        const loading = document.getElementById('loading');
+        const notification = document.getElementById('notification');
+        const searchModal = document.getElementById('searchModal');
+        const searchInput = document.getElementById('searchInput');
         const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
         const profilePic = document.getElementById('profilePic');
         const username = document.getElementById('username');
-        const subtitle = document.getElementById('subtitle');
+        const usernameSection = document.getElementById('usernameSection');
         const verifyBadge = document.getElementById('verifyBadge');
-        const followBtn = document.getElementById('followBtn');
         const videoTitle = document.getElementById('videoTitle');
-        const qualityIndicator = document.getElementById('qualityIndicator');
-        const speedControl = document.getElementById('speedControl');
-        const audioVisualizer = document.getElementById('audioVisualizer');
-        const gestureHint = document.getElementById('gestureHint');
-        const likeBtn = document.getElementById('likeBtn');
-        const likeCount = document.getElementById('likeCount');
-        const commentCount = document.getElementById('commentCount');
-        const shareCount = document.getElementById('shareCount');
 
-        // Get initial parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const initialReelId = urlParams.get('reelId') || null;
+        // Initial video configuration
+        const INITIAL_VIDEO = {
+            reelId: 'init',
+            id: 'default',
+            title: 'Welcome to Reels Player',
+            media: 'https://marya-hosting.pages.dev/btfstorage/file/idmha4q139i9te1a.mp4',
+            username: 'Reels',
+            profile: 'https://marya-hosting.pages.dev/btfstorage/file/idmha4pww8ow0y0f.jpg',
+            verified: true
+        };
 
-        // Network Detection & Adaptive Streaming [web:27][web:30]
-        function detectNetworkSpeed() {
-            if ('connection' in navigator) {
-                const connection = navigator.connection;
-                const speed = connection.downlink;
-                if (speed > 10) networkSpeed = 'high';
-                else if (speed > 5) networkSpeed = 'medium';
-                else networkSpeed = 'low';
-                
-                updateQualityIndicator();
+        // Notification System
+        function showNotification(message, duration = 2000) {
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, duration);
+        }
+
+        // Search Functions
+        function openSearch() {
+            searchModal.classList.add('active');
+            searchInput.focus();
+        }
+
+        function closeSearch() {
+            searchModal.classList.remove('active');
+            searchInput.value = '';
+        }
+
+        function searchReel() {
+            const reelId = searchInput.value.trim();
+            if (!reelId) {
+                showNotification('Please enter a Reel ID');
+                return;
+            }
+
+            const foundIndex = allReels.findIndex(reel => 
+                reel.reelId.toLowerCase() === reelId.toLowerCase()
+            );
+
+            if (foundIndex !== -1) {
+                currentIndex = foundIndex;
+                loadReel(currentIndex);
+                closeSearch();
+                showNotification('Reel loaded');
+            } else {
+                showNotification('Reel not found');
             }
         }
 
-        function getOptimalResolution() {
-            if (!autoQuality) return currentQuality;
-            switch (networkSpeed) {
-                case 'high': return '1080p';
-                case 'medium': return '720p';
-                default: return '480p';
-            }
-        }
-
-        function updateQualityIndicator() {
-            const quality = getOptimalResolution();
-            qualityIndicator.textContent = autoQuality ? `AUTO (${quality})` : quality;
-            qualityIndicator.className = autoQuality ? 'quality-indicator auto' : 'quality-indicator';
-        }
-
-        // Enhanced Audio Management
+        // Audio Management
         function setAudioPersistence() {
             localStorage.setItem('audioEnabled', 'true');
             isAudioEnabled = true;
             if (currentVideo) {
                 currentVideo.muted = false;
                 currentVideo.play().catch(console.log);
-                showAudioVisualizer();
-            }
-            showNotification('🔊 Audio enabled');
-        }
-
-        function showAudioVisualizer() {
-            if (isAudioEnabled && currentVideo && !currentVideo.muted) {
-                audioVisualizer.style.opacity = '0.7';
-            } else {
-                audioVisualizer.style.opacity = '0';
             }
         }
 
-        // Advanced URL Validation with Fallbacks [web:27]
-        async function checkUrlValidity(url) {
+        // Load Metadata
+        async function loadMetadata() {
             try {
-                const response = await fetch(url, { 
-                    method: 'HEAD', 
-                    mode: 'no-cors',
-                    cache: 'force-cache'
+                const [profilesResponse, reelsResponse] = await Promise.all([
+                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json')
+                        .then(res => res.ok ? res.json() : { profiles: [] }),
+                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json')
+                        .then(res => res.ok ? res.json() : { reels: [] })
+                ]);
+
+                profiles = profilesResponse.profiles || [];
+                allReels = reelsResponse.reels || [];
+
+                // Add initial video at the start
+                if (!allReels.find(r => r.reelId === INITIAL_VIDEO.reelId)) {
+                    allReels.unshift(INITIAL_VIDEO);
+                }
+
+                if (allReels.length === 0) {
+                    allReels = [INITIAL_VIDEO];
+                }
+
+                // Initialize likes
+                allReels.forEach(reel => {
+                    if (!likes.has(reel.reelId)) {
+                        likes.set(reel.reelId, { count: Math.floor(Math.random() * 1000), liked: false });
+                    }
                 });
+
                 return true;
             } catch (error) {
-                console.log(`URL validation failed: ${url}`, error);
+                console.error('Metadata load error:', error);
+                allReels = [INITIAL_VIDEO];
                 return false;
             }
         }
 
-        // Enhanced Metadata Loading with Caching
-        async function loadMetadata() {
-            try {
-                showLoadingState();
-                
-                const cacheKey = 'reels_metadata_v2';
-                const cachedData = localStorage.getItem(cacheKey);
-                const cacheTime = localStorage.getItem(cacheKey + '_time');
-                
-                // Use cache if less than 5 minutes old
-                if (cachedData && cacheTime && (Date.now() - parseInt(cacheTime)) < 300000) {
-                    const parsed = JSON.parse(cachedData);
-                    allReels = parsed.reels || [];
-                    hideLoadingState();
-                    return { profiles: parsed.profiles || [], success: true };
-                }
+        // Get Profile Data
+        function getProfileById(id) {
+            const profile = profiles.find(p => p.id === id);
+            if (profile) return profile;
 
-                const [profilesResponse, reelsResponse] = await Promise.all([
-                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/profiles.json', {
-                        cache: 'force-cache'
-                    }).then(res => {
-                        if (!res.ok) throw new Error('Profiles fetch failed');
-                        return res.json();
-                    }),
-                    fetch('https://raw.githubusercontent.com/ydvkrn/Instagram/refs/heads/main/reels.json', {
-                        cache: 'force-cache'
-                    }).then(res => {
-                        if (!res.ok) throw new Error('Reels fetch failed');
-                        return res.json();
-                    })
-                ]);
+            // Return default for initial video
+            if (id === 'default') {
+                return INITIAL_VIDEO;
+            }
 
-                const profiles = profilesResponse.profiles || [];
-                allReels = reelsResponse.reels || [];
+            return {
+                username: 'User',
+                profile: 'https://i.postimg.cc/3Rh3SjRb/image.jpg',
+                verified: false
+            };
+        }
 
-                // Cache the data
-                localStorage.setItem(cacheKey, JSON.stringify({ profiles, reels: allReels }));
-                localStorage.setItem(cacheKey + '_time', Date.now().toString());
+        // Update Metadata Display
+        function updateMetadata(reel) {
+            fullTitle = reel.title;
+            videoTitle.textContent = reel.title;
 
-                if (allReels.length === 0) {
-                    container.innerHTML = '<div style="color: white; text-align: center; padding-top: 50%; font-size: 18px;">No reels available 😔</div>';
-                    return { profiles, success: false };
-                }
+            const profileData = getProfileById(reel.id);
+            username.textContent = profileData.username || reel.username || 'User';
+            profilePic.src = profileData.profile || reel.profile || 'https://i.postimg.cc/3Rh3SjRb/image.jpg';
 
-                // Initialize engagement data
-                allReels.forEach(reel => {
-                    if (!likes.has(reel.reelId)) {
-                        likes.set(reel.reelId, {
-                            count: Math.floor(Math.random() * 1000) + 10,
-                            liked: false
-                        });
-                    }
-                    if (!isFollowing.has(reel.id)) {
-                        isFollowing.set(reel.id, Math.random() > 0.7);
-                    }
-                    if (!watchTime.has(reel.reelId)) {
-                        watchTime.set(reel.reelId, 0);
-                    }
-                });
+            const isVerified = profileData.verified !== undefined ? profileData.verified : reel.verified;
+            verifyBadge.style.display = isVerified ? 'inline' : 'none';
 
-                hideLoadingState();
-                return { profiles, success: true };
-                
-            } catch (error) {
-                console.error('Error loading metadata:', error);
-                showErrorState();
-                setTimeout(() => loadMetadata(), 3000);
-                return { profiles: [], success: false };
+            profilePic.dataset.id = reel.id;
+            usernameSection.dataset.id = reel.id;
+        }
+
+        // Show Full Title
+        function showFullTitle() {
+            if (fullTitle) {
+                alert(fullTitle);
             }
         }
 
-        // Enhanced Loading States
-        function showLoadingState() {
-            loadingOverlay.style.display = 'flex';
-        }
-
-        function hideLoadingState() {
-            setTimeout(() => {
-                loadingOverlay.style.opacity = '0';
-                setTimeout(() => {
-                    loadingOverlay.style.display = 'none';
-                    loadingOverlay.style.opacity = '1';
-                }, 300);
-            }, 500);
-        }
-
-        function showErrorState() {
-            container.innerHTML = `
-                <div style="color: white; text-align: center; padding-top: 40%; font-size: 18px;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">😔</div>
-                    <div>Loading failed</div>
-                    <div style="font-size: 14px; opacity: 0.7; margin-top: 10px;">Retrying in 3 seconds...</div>
-                </div>
-            `;
-        }
-
-        // Advanced Video Element Creation with MSE Support [web:27]
-        function createVideoElement(reel, index, videoUrl) {
+        // Create Video Element
+        function createVideoElement(reel, index) {
             const div = document.createElement('div');
             div.className = 'video-container';
-            div.dataset.index = index;
-
-            // Create interactive overlay
-            const interactiveOverlay = document.createElement('div');
-            interactiveOverlay.className = 'interactive-overlay';
-
-            // Create tap zones for advanced interactions
-            ['left', 'center', 'right'].forEach(position => {
-                const zone = document.createElement('div');
-                zone.className = `tap-zone ${position}`;
-                zone.addEventListener('click', (e) => handleTapZone(e, position));
-                interactiveOverlay.appendChild(zone);
-            });
 
             const video = document.createElement('video');
             video.playsInline = true;
             video.controls = false;
             video.muted = !isAudioEnabled;
             video.dataset.index = index;
-            video.dataset.title = reel.title;
-            video.src = videoUrl;
-            video.preload = 'metadata';
+            video.src = reel.media;
+            video.preload = 'auto';
             video.setAttribute('playsinline', '');
             video.setAttribute('webkit-playsinline', '');
-            video.type = 'video/mp4';
-            video.playbackRate = currentSpeed;
+            video.loop = true;
 
-            // Enhanced video event listeners
-            video.addEventListener('loadstart', () => {
-                console.log(`Started loading: ${reel.media}`);
-            });
-
+            // Video Events
             video.addEventListener('canplay', () => {
-                console.log(`Video can play: ${reel.media}`);
                 currentVideo = video;
                 updateMetadata(reel);
                 video.play().catch(console.log);
-                analytics.views++;
             });
 
             video.addEventListener('timeupdate', () => {
                 if (!video.paused && !isScrubbing) {
                     const progress = (video.currentTime / video.duration) * 100;
-                    progressBar.style.width = `${progress}%`;
-                    
-                    // Update watch time analytics
-                    const reelId = allReels[currentIndex]?.reelId;
-                    if (reelId) {
-                        watchTime.set(reelId, (watchTime.get(reelId) || 0) + 0.1);
-                    }
+                    progressFill.style.width = progress + '%';
                 }
-                showAudioVisualizer();
-            });
-
-            video.addEventListener('ended', () => {
-                console.log(`Video ended: ${reel.media}`);
-                setTimeout(() => nextReel(), 500); // Auto-advance to next reel
             });
 
             video.addEventListener('error', (e) => {
-                console.error(`Error loading video ${reel.media}:`, e);
-                showNotification('❌ Video failed to load');
-                setTimeout(() => nextReel(), 1000);
+                console.error('Video error:', e);
+                showNotification('Video load error');
+                setTimeout(() => nextReel(), 1500);
             });
 
-            video.addEventListener('waiting', () => {
-                showNotification('⏳ Buffering...');
-            });
-
-            video.addEventListener('canplaythrough', () => {
-                console.log(`Video ready for playback: ${reel.media}`);
+            video.addEventListener('touchstart', () => {
+                if (!isAudioEnabled) {
+                    setAudioPersistence();
+                }
             });
 
             div.appendChild(video);
-            div.appendChild(interactiveOverlay);
             return div;
         }
 
-        // Advanced Tap Zone Handling [web:26][web:29]
-        function handleTapZone(e, position) {
-            const currentTime = Date.now();
-            const timeSinceLastTap = currentTime - lastTap;
+        // Load Reel
+        function loadReel(index) {
+            if (index < 0 || index >= allReels.length) return;
 
-            if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
-                // Double tap
-                if (position === 'center') {
-                    handleLike(e);
-                } else if (position === 'left') {
-                    seekVideo(-10); // Seek backward 10 seconds
-                    showSeekFeedback('⏪ -10s', e.clientX, e.clientY);
-                } else if (position === 'right') {
-                    seekVideo(10); // Seek forward 10 seconds
-                    showSeekFeedback('⏩ +10s', e.clientX, e.clientY);
-                }
-            } else {
-                // Single tap
-                if (position === 'center') {
-                    togglePlayPause();
-                } else if (position === 'left') {
-                    adjustVolume(-0.1);
-                } else if (position === 'right') {
-                    adjustVolume(0.1);
-                }
-            }
-            lastTap = currentTime;
-        }
-
-        function seekVideo(seconds) {
             if (currentVideo) {
-                currentVideo.currentTime = Math.max(0, 
-                    Math.min(currentVideo.duration, currentVideo.currentTime + seconds));
-            }
-        }
-
-        function showSeekFeedback(text, x, y) {
-            const feedback = document.createElement('div');
-            feedback.textContent = text;
-            feedback.style.cssText = `
-                position: fixed;
-                left: ${x}px;
-                top: ${y}px;
-                transform: translate(-50%, -50%);
-                color: white;
-                font-size: 18px;
-                font-weight: bold;
-                z-index: 20;
-                pointer-events: none;
-                text-shadow: 0 0 10px rgba(0,0,0,0.8);
-                animation: seekFeedback 0.8s ease-out forwards;
-            `;
-            document.body.appendChild(feedback);
-            setTimeout(() => feedback.remove(), 800);
-        }
-
-        function adjustVolume(delta) {
-            if (currentVideo) {
-                const newVolume = Math.max(0, Math.min(1, currentVideo.volume + delta));
-                currentVideo.volume = newVolume;
-                showNotification(`🔊 Volume: ${Math.round(newVolume * 100)}%`);
-            }
-        }
-
-        function togglePlayPause() {
-            if (currentVideo) {
-                if (currentVideo.paused) {
-                    currentVideo.play().catch(console.log);
-                    showNotification('▶️ Playing');
-                } else {
-                    currentVideo.pause();
-                    showNotification('⏸️ Paused');
-                }
-            }
-        }
-
-        // Enhanced Metadata Update with Analytics [web:5]
-        function updateMetadata(reel) {
-            fullTitle = reel.title;
-            videoTitle.textContent = reel.title;
-            
-            const profileData = getProfileById(reel.id);
-            profilePic.src = profileData.profile || "https://i.postimg.cc/3Rh3SjRb/image.jpg";
-            username.textContent = profileData.username;
-            subtitle.textContent = profileData.bio || "Content Creator";
-            verifyBadge.style.display = profileData.verified ? "inline" : "none";
-            
-            // Update engagement counts
-            const reelLikes = likes.get(reel.reelId);
-            likeCount.textContent = formatCount(reelLikes.count);
-            commentCount.textContent = formatCount(Math.floor(Math.random() * 500) + 5);
-            shareCount.textContent = formatCount(Math.floor(Math.random() * 100) + 2);
-            
-            // Update follow button
-            const following = isFollowing.get(reel.id);
-            followBtn.textContent = following ? 'Following' : 'Follow';
-            followBtn.style.background = following ? 'rgba(255,255,255,0.2)' : 'var(--gradient-primary)';
-            
-            likeBtn.className = reelLikes.liked ? 'side-action liked' : 'side-action';
-            
-            profilePic.dataset.id = reel.id;
-            username.dataset.id = reel.id;
-        }
-
-        function getProfileById(id) {
-            // This would normally fetch from the profiles data
-            return {
-                username: "creator_" + id,
-                profile: "https://i.postimg.cc/3Rh3SjRb/image.jpg",
-                verified: Math.random() > 0.7,
-                bio: "Digital Content Creator 🎬"
-            };
-        }
-
-        function formatCount(count) {
-            if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
-            if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
-            return count.toString();
-        }
-
-        // Enhanced Like Animation [web:29]
-        function handleLike(e) {
-            const reel = allReels[currentIndex];
-            const reelLikes = likes.get(reel.reelId);
-            
-            if (!reelLikes.liked) {
-                reelLikes.count += 1;
-                reelLikes.liked = true;
-                analytics.engagement++;
-                
-                // Create enhanced like animation
-                const likeImg = document.createElement('img');
-                likeImg.src = 'https://i.postimg.cc/pr68HrJm/1000063176-removebg-preview.png';
-                likeImg.className = 'like-animation';
-                likeImg.style.left = `${e.clientX || window.innerWidth/2}px`;
-                likeImg.style.top = `${e.clientY || window.innerHeight/2}px`;
-                container.appendChild(likeImg);
-                
-                // Update UI
-                likeCount.textContent = formatCount(reelLikes.count);
-                likeBtn.className = 'side-action liked';
-                
-                // Haptic feedback if available
-                if ('vibrate' in navigator) {
-                    navigator.vibrate(50);
-                }
-                
-                setTimeout(() => likeImg.remove(), 800);
-                showNotification('❤️ Liked!');
-            }
-        }
-
-        // Enhanced Reel Loading with Preloading [web:27]
-        async function loadReel(index, preload = false) {
-            if (index < 0 || index >= allReels.length) {
-                console.warn('Index out of bounds:', index);
-                return;
+                currentVideo.pause();
+                currentVideo.muted = true;
             }
 
-            if (!preload) {
-                if (currentVideo) {
-                    currentVideo.pause();
-                    currentVideo.muted = true;
-                }
-
-                container.innerHTML = '';
-                const existingProgress = document.querySelector('.progress-bar');
-                if (existingProgress) {
-                    progressBar.style.width = '0%';
-                }
-            }
+            container.innerHTML = '';
+            progressFill.style.width = '0%';
 
             const reel = allReels[index];
-            const videoUrl = await loadVideoUrl(reel);
-            if (!videoUrl && !preload) {
-                nextReel();
-                return;
-            }
+            const videoElement = createVideoElement(reel, index);
+            container.appendChild(videoElement);
 
-            if (!preload) {
-                const videoElement = createVideoElement(reel, index, videoUrl);
-                container.appendChild(videoElement);
-                
-                currentVideo = videoElement.querySelector('video');
-                currentVideo.muted = !isAudioEnabled;
-                currentVideo.play().catch(console.log);
-                updateMetadata(reel);
+            currentVideo = videoElement.querySelector('video');
+            currentVideo.muted = !isAudioEnabled;
+            currentVideo.play().catch(console.log);
+            updateMetadata(reel);
 
-                // Update URL without page reload
-                const newUrl = `/Instagram/?reelId=${reel.reelId}`;
-                window.history.pushState({ reelId: reel.reelId }, document.title, newUrl);
-                
-                // Preload next videos
-                if (index + 1 < allReels.length) {
-                    setTimeout(() => loadReel(index + 1, true), 1000);
-                }
-            }
+            // Update URL
+            window.history.pushState({}, '', `?reelId=${reel.reelId}`);
         }
 
-        async function loadVideoUrl(reel) {
-            const isValid = await checkUrlValidity(reel.media);
-            return isValid ? reel.media : null;
-        }
-
-        // Navigation Functions
+        // Navigation
         function nextReel() {
             if (isTransitioning) return;
             if (currentIndex + 1 < allReels.length) {
@@ -1182,9 +764,9 @@
                 loadReel(currentIndex);
                 setTimeout(() => { isTransitioning = false; }, 300);
             } else {
-                showNotification('🎬 End of reels - restarting from beginning');
                 currentIndex = 0;
                 loadReel(currentIndex);
+                showNotification('Back to start');
             }
         }
 
@@ -1195,425 +777,205 @@
                 currentIndex--;
                 loadReel(currentIndex);
                 setTimeout(() => { isTransitioning = false; }, 300);
+            } else {
+                currentIndex = allReels.length - 1;
+                loadReel(currentIndex);
+                showNotification('Last reel');
             }
         }
 
-        // Enhanced Gesture Controls [web:26][web:39]
-        function setupAdvancedGestures() {
-            let touchStartY = 0;
-            let touchMoveY = 0;
-            let touchStartX = 0;
-            let touchMoveX = 0;
-            let isHolding = false;
-            let isPinching = false;
-            let initialDistance = 0;
-            let currentScale = 1;
+        // Like Animation
+        function showLikeAnimation(x, y) {
+            const likeImg = document.createElement('img');
+            likeImg.src = 'https://i.postimg.cc/pr68HrJm/1000063176-removebg-preview.png';
+            likeImg.className = 'like-animation';
+            likeImg.style.left = x + 'px';
+            likeImg.style.top = y + 'px';
+            container.appendChild(likeImg);
 
-            container.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 1) {
-                    // Single touch
-                    touchStartY = e.touches[0].clientY;
-                    touchStartX = e.touches[0].clientX;
-                    touchMoveY = touchStartY;
-                    touchMoveX = touchStartX;
-                    isHolding = true;
+            const reel = allReels[currentIndex];
+            const reelLikes = likes.get(reel.reelId);
+            if (reelLikes) {
+                reelLikes.count += 1;
+                reelLikes.liked = true;
+            }
 
-                    clearTimeout(holdTimer);
-                    holdTimer = setTimeout(() => {
-                        if (isHolding) {
-                            showSpeedControl();
-                            if ('vibrate' in navigator) {
-                                navigator.vibrate([50, 50, 50]);
-                            }
-                        }
-                    }, 800);
-                } else if (e.touches.length === 2) {
-                    // Pinch to zoom
-                    isPinching = true;
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    initialDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+            setTimeout(() => likeImg.remove(), 600);
+        }
+
+        // Touch Events
+        container.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            touchStartX = e.touches[0].clientX;
+
+            clearTimeout(holdTimer);
+            holdTimer = setTimeout(() => {
+                if (currentVideo) {
+                    currentVideo.pause();
+                    isScrubbing = true;
+                    progressContainer.classList.add('active');
                 }
-            });
+            }, 500);
+        });
 
-            container.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                
-                if (isPinching && e.touches.length === 2) {
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    const currentDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
-                    const scale = currentDistance / initialDistance;
-                    
-                    if (currentVideo) {
-                        currentScale = Math.max(1, Math.min(3, scale));
-                        currentVideo.style.transform = `scale(${currentScale})`;
-                    }
-                    return;
+        container.addEventListener('touchmove', (e) => {
+            if (isScrubbing && currentVideo) {
+                const touchX = e.touches[0].clientX;
+                const deltaX = touchX - touchStartX;
+                const screenWidth = window.innerWidth;
+                const progressChange = deltaX / (screenWidth * 2);
+                const newTime = Math.max(0, Math.min(currentVideo.duration, 
+                    currentVideo.currentTime + (progressChange * currentVideo.duration)));
+                currentVideo.currentTime = newTime;
+            }
+        });
+
+        container.addEventListener('touchend', (e) => {
+            if (isTransitioning) return;
+
+            const touchEndY = e.changedTouches[0].clientY;
+            const swipeDistance = touchStartY - touchEndY;
+
+            clearTimeout(holdTimer);
+            progressContainer.classList.remove('active');
+
+            if (isScrubbing) {
+                if (currentVideo) {
+                    currentVideo.play().catch(console.log);
                 }
-
-                if (e.touches.length === 1) {
-                    touchMoveY = e.touches[0].clientY;
-                    touchMoveX = e.touches[0].clientX;
-                    
-                    if (isScrubbing && currentVideo) {
-                        const deltaX = touchMoveX - touchStartX;
-                        const screenWidth = window.innerWidth;
-                        const progressChange = deltaX / (screenWidth * 2);
-                        const newTime = Math.max(0, Math.min(currentVideo.duration, 
-                            currentVideo.currentTime + (progressChange * currentVideo.duration)));
-                        currentVideo.currentTime = newTime;
-                        const progress = (newTime / currentVideo.duration) * 100;
-                        progressBar.style.width = `${progress}%`;
-                        progressContainer.classList.add('highlighted');
-                    }
-                }
-            });
-
-            container.addEventListener('touchend', (e) => {
-                if (isTransitioning) return;
-                
-                clearTimeout(holdTimer);
-                hideSpeedControl();
-                progressContainer.classList.remove('highlighted');
-
-                if (isPinching) {
-                    isPinching = false;
-                    if (currentVideo && currentScale > 1.5) {
-                        toggleCleanMode();
-                    } else if (currentVideo) {
-                        currentVideo.style.transform = 'scale(1)';
-                    }
-                    currentScale = 1;
-                    return;
-                }
-
-                const touchEndY = e.changedTouches[0].clientY;
-                const touchEndX = e.changedTouches[0].clientX;
-                const swipeDistanceY = touchStartY - touchEndY;
-                const swipeDistanceX = Math.abs(touchStartX - touchEndX);
-
-                if (isScrubbing) {
-                    isScrubbing = false;
-                    if (currentVideo) {
-                        currentVideo.play().catch(console.log);
-                    }
-                    return;
-                }
-
-                if (isHolding && Math.abs(swipeDistanceY) < 50 && swipeDistanceX < 50) {
-                    // Long press ended without swipe
-                    if (currentVideo) {
-                        currentVideo.play().catch(console.log);
-                    }
-                } else if (Math.abs(swipeDistanceY) > 100 && swipeDistanceX < 100) {
-                    // Vertical swipe
-                    if (swipeDistanceY > 0) {
-                        nextReel();
-                    } else {
-                        prevReel();
-                    }
-                } else if (swipeDistanceX > 150 && Math.abs(swipeDistanceY) < 100) {
-                    // Horizontal swipe
-                    if (touchStartX > touchEndX) {
-                        // Swipe left - show user profile or comments
-                        showUserProfile();
-                    } else {
-                        // Swipe right - show more options
-                        showMoreOptions();
-                    }
-                }
-
-                isHolding = false;
                 isScrubbing = false;
-            });
+                return;
+            }
 
-            // Mouse wheel support for desktop
-            container.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                if (e.deltaY > 0) {
+            // Handle double tap for like
+            const now = Date.now();
+            const timeSinceLastTap = now - lastTap;
+            if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+                const touchX = e.changedTouches[0].clientX;
+                const touchY = e.changedTouches[0].clientY;
+                showLikeAnimation(touchX, touchY);
+                lastTap = 0;
+                return;
+            }
+            lastTap = now;
+
+            // Handle swipe navigation
+            if (Math.abs(swipeDistance) > 50) {
+                if (swipeDistance > 0) {
                     nextReel();
                 } else {
                     prevReel();
                 }
-            });
-        }
-
-        // Speed Control Functions
-        function showSpeedControl() {
-            speedControl.classList.add('visible');
-            isScrubbing = true;
-            if (currentVideo) {
-                currentVideo.pause();
             }
-        }
+        });
 
-        function hideSpeedControl() {
-            speedControl.classList.remove('visible');
-        }
-
-        // UI Toggle Functions [web:9]
-        function toggleCleanMode() {
-            isCleanMode = !isCleanMode;
-            document.body.classList.toggle('clean-mode', isCleanMode);
-            if (currentVideo) {
-                currentVideo.classList.toggle('clean-mode', isCleanMode);
+        // Progress Bar Click
+        progressContainer.addEventListener('click', (e) => {
+            if (currentVideo && currentVideo.duration) {
+                const rect = progressContainer.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                currentVideo.currentTime = percent * currentVideo.duration;
             }
-            showNotification(isCleanMode ? '🎭 Clean mode ON' : '🎭 Clean mode OFF');
-        }
+        });
 
-        function toggleTitle() {
-            videoTitle.classList.toggle('expanded');
-            if (videoTitle.classList.contains('expanded')) {
-                videoTitle.textContent = fullTitle;
-            } else {
-                videoTitle.textContent = fullTitle.length > 100 ? 
-                    fullTitle.substring(0, 100) + '...' : fullTitle;
-            }
-        }
-
-        // Notification System
-        function showNotification(message) {
-            const notification = document.createElement('div');
-            notification.textContent = message;
-            notification.style.cssText = `
-                position: fixed;
-                top: 80px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: var(--glass-bg);
-                backdrop-filter: blur(10px);
-                border: 1px solid var(--glass-border);
-                color: white;
-                padding: 12px 20px;
-                border-radius: 25px;
-                font-size: 14px;
-                font-weight: 600;
-                z-index: 30;
-                animation: slideInOut 3s ease forwards;
-                pointer-events: none;
-            `;
-            document.body.appendChild(notification);
-            setTimeout(() => notification.remove(), 3000);
-        }
-
-        // User Interaction Functions
-        function showUserProfile() {
-            const reel = allReels[currentIndex];
-            const profileData = getProfileById(reel.id);
-            showNotification(`👤 Opening ${profileData.username}'s profile`);
-            // In a real app, this would open the user's profile page
-            setTimeout(() => {
-                window.open(`/profiles.html?id=${reel.id}`, '_blank');
-            }, 500);
-        }
-
-        function showMoreOptions() {
-            showNotification('⚙️ More options');
-            // In a real app, this would show a bottom sheet with options
-        }
-
-        // Event Listeners Setup
-        function setupEventListeners() {
-            // Follow button
-            followBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const reel = allReels[currentIndex];
-                const following = !isFollowing.get(reel.id);
-                isFollowing.set(reel.id, following);
-                updateMetadata(reel);
-                showNotification(following ? '✅ Followed!' : '❌ Unfollowed');
-            });
-
-            // Like button
-            likeBtn.addEventListener('click', (e) => {
-                handleLike(e);
-            });
-
-            // Speed control buttons
-            document.querySelectorAll('.speed-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const speed = parseFloat(btn.dataset.speed);
-                    currentSpeed = speed;
+        // Keyboard Controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    nextReel();
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    prevReel();
+                    break;
+                case ' ':
+                    e.preventDefault();
                     if (currentVideo) {
-                        currentVideo.playbackRate = speed;
+                        if (currentVideo.paused) {
+                            currentVideo.play();
+                        } else {
+                            currentVideo.pause();
+                        }
                     }
-                    
-                    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    showNotification(`⚡ Speed: ${speed}x`);
-                });
-            });
-
-            // Progress bar click
-            progressContainer.addEventListener('click', (e) => {
-                if (currentVideo) {
-                    const rect = progressContainer.getBoundingClientRect();
-                    const clickX = e.clientX - rect.left;
-                    const progressWidth = rect.width;
-                    const clickPercentage = clickX / progressWidth;
-                    currentVideo.currentTime = clickPercentage * currentVideo.duration;
-                }
-            });
-
-            // Top controls
-            document.getElementById('searchBtn').addEventListener('click', () => {
-                showNotification('🔍 Search feature coming soon!');
-            });
-
-            document.getElementById('cameraBtn').addEventListener('click', () => {
-                showNotification('📸 Camera feature coming soon!');
-            });
-
-            document.getElementById('settingsBtn').addEventListener('click', () => {
-                showNotification('⚙️ Settings panel coming soon!');
-            });
-
-            // Keyboard shortcuts
-            document.addEventListener('keydown', (e) => {
-                switch(e.key) {
-                    case 'ArrowUp':
-                        e.preventDefault();
-                        nextReel();
-                        break;
-                    case 'ArrowDown':
-                        e.preventDefault();
-                        prevReel();
-                        break;
-                    case ' ':
-                        e.preventDefault();
-                        togglePlayPause();
-                        break;
-                    case 'm':
-                        e.preventDefault();
-                        toggleMute();
-                        break;
-                    case 'f':
-                        e.preventDefault();
-                        toggleFullscreen();
-                        break;
-                    case 'c':
-                        e.preventDefault();
-                        toggleCleanMode();
-                        break;
-                }
-            });
-
-            // Auto-hide controls
-            let controlsTimeout;
-            const showControls = () => {
-                if (!isCleanMode) {
-                    topControls.classList.remove('hidden');
-                    rightActions.classList.remove('hidden');
-                    userInfoContainer.classList.remove('hidden');
-                }
-                clearTimeout(controlsTimeout);
-                controlsTimeout = setTimeout(() => {
-                    if (!isCleanMode) {
-                        topControls.classList.add('hidden');
-                        rightActions.classList.add('hidden');
-                        userInfoContainer.classList.add('hidden');
+                    break;
+                case '/':
+                    e.preventDefault();
+                    openSearch();
+                    break;
+                case 'Escape':
+                    if (searchModal.classList.contains('active')) {
+                        closeSearch();
                     }
-                }, 4000);
-            };
-
-            container.addEventListener('touchstart', showControls);
-            container.addEventListener('mousemove', showControls);
-            showControls(); // Show initially
-        }
-
-        function toggleMute() {
-            if (currentVideo) {
-                currentVideo.muted = !currentVideo.muted;
-                isAudioEnabled = !currentVideo.muted;
-                localStorage.setItem('audioEnabled', isAudioEnabled.toString());
-                showNotification(currentVideo.muted ? '🔇 Muted' : '🔊 Unmuted');
-                showAudioVisualizer();
+                    break;
             }
-        }
+        });
 
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-                showNotification('📺 Fullscreen ON');
-            } else {
-                document.exitFullscreen();
-                showNotification('📺 Fullscreen OFF');
+        // Profile Click
+        profilePic.addEventListener('click', () => {
+            const profileId = profilePic.dataset.id;
+            if (profileId) {
+                window.open(`/profiles.html?id=${profileId}`, '_blank');
             }
-        }
+        });
 
-        // Main Initialization Function
-        async function initialize() {
-            console.log('🚀 Initializing ReelMaster...');
-            
-            // Detect network conditions
-            detectNetworkSpeed();
-            
-            const { profiles, success } = await loadMetadata();
-            if (!success) return;
+        usernameSection.addEventListener('click', () => {
+            const profileId = usernameSection.dataset.id;
+            if (profileId) {
+                window.open(`/profiles.html?id=${profileId}`, '_blank');
+            }
+        });
 
-            // Find starting index
-            currentIndex = initialReelId ? 
-                allReels.findIndex(reel => reel.reelId === initialReelId) : 0;
-            if (currentIndex === -1) currentIndex = 0;
+        // Initialize App
+        async function initApp() {
+            try {
+                await loadMetadata();
 
-            // Setup all components
-            setupEventListeners();
-            setupAdvancedGestures();
-            
-            // Load first reel
-            await loadReel(currentIndex);
-            
-            // Hide gesture hint after 5 seconds
-            setTimeout(() => {
-                if (gestureHint) {
-                    gestureHint.style.opacity = '0';
+                // Check URL for reelId
+                const urlParams = new URLSearchParams(window.location.search);
+                const reelId = urlParams.get('reelId');
+
+                if (reelId) {
+                    const foundIndex = allReels.findIndex(reel => reel.reelId === reelId);
+                    if (foundIndex !== -1) {
+                        currentIndex = foundIndex;
+                    }
                 }
-            }, 5000);
 
-            console.log('✅ ReelMaster initialized successfully!');
+                loadReel(currentIndex);
+
+                setTimeout(() => {
+                    loading.classList.add('hidden');
+                }, 800);
+
+            } catch (error) {
+                console.error('Init error:', error);
+                loading.classList.add('hidden');
+            }
         }
 
-        // Add CSS animations
-        const additionalStyles = `
-            @keyframes slideInOut {
-                0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-                20%, 80% { opacity: 1; transform: translateX(-50%) translateY(0); }
-                100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        // Browser Navigation
+        window.addEventListener('popstate', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const reelId = urlParams.get('reelId');
+            if (reelId) {
+                const foundIndex = allReels.findIndex(reel => reel.reelId === reelId);
+                if (foundIndex !== -1 && foundIndex !== currentIndex) {
+                    currentIndex = foundIndex;
+                    loadReel(currentIndex);
+                }
             }
-            
-            @keyframes seekFeedback {
-                0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
-                50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
-                100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
-            }
-        `;
-        
-        const styleSheet = document.createElement('style');
-        styleSheet.textContent = additionalStyles;
-        document.head.appendChild(styleSheet);
+        });
 
-        // Security measures
+        // Prevent context menu
         document.addEventListener('contextmenu', (e) => e.preventDefault());
         document.addEventListener('dragstart', (e) => e.preventDefault());
-        document.addEventListener('selectstart', (e) => e.preventDefault());
 
-        // Initialize the app
-        initialize().catch(console.error);
-
-        // Performance monitoring
-        if ('performance' in window) {
-            window.addEventListener('load', () => {
-                setTimeout(() => {
-                    const loadTime = performance.now();
-                    console.log(`⚡ App loaded in ${loadTime.toFixed(2)}ms`);
-                }, 0);
-            });
-        }
-
-        // Service Worker registration for offline support
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(console.error);
+        // Start App
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
         }
     </script>
 </body>
