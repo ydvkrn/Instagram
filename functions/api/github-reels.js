@@ -19,7 +19,7 @@ export async function onRequestPost({ request }) {
   try {
     const body = await request.json();
     
-    // GitHub API se update karo (token environment variable mein rakhna)
+    // GitHub API se update karo (token environment variable mein rkhna)
     // GITHUB_TOKEN, REPO, etc.
     
     return new Response(JSON.stringify({ success: true }), {
