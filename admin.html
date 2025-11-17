@@ -52,6 +52,7 @@ button:hover { background: #e6005c; transform: translateY(-1px); }
 .checkbox-label { display: flex; align-items: center; gap: 8px; margin: 10px 0; justify-content: flex-start; }
 .checkbox-label input[type="checkbox"] { width: auto; }
 hr { border: none; border-top: 1px solid #333; margin: 15px 0; }
+.debug-info { background: #1a1a1a; padding: 10px; margin: 10px 0; border-radius: 5px; font-size: 11px; text-align: left; border: 1px solid #333; max-height: 200px; overflow-y: auto; }
 </style>
 </head>
 <body>
@@ -145,13 +146,52 @@ Next <i class="fas fa-chevron-right"></i>
 </div>
 
 <script>
-// ===== CONFIGURATION (NO SECRETS) =====
+// ===== CONFIGURATION =====
 const INSTAGRAM_API = "https://api.yabes-desu.workers.dev/download/instagram/v2?url=";
 
 let reelCurrentPage = 1, profileCurrentPage = 1;
 const itemsPerPage = 5;
 let allReels = [], allProfiles = [];
 let originalReels = [], originalProfiles = [];
+
+// ===== IMPROVED FETCH WITH ERROR HANDLING =====
+async function safeFetch(url, options = {}) {
+    try {
+        const response = await fetch(url, options);
+        
+        // Check content type
+        const contentType = response.headers.get('content-type');
+        console.log('Response status:', response.status);
+        console.log('Content-Type:', contentType);
+        
+        // Get response as text first
+        const text = await response.text();
+        console.log('Response text:', text.substring(0, 200));
+        
+        // Check if it's HTML (error page)
+        if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+            throw new Error(`API returned HTML (likely 404/error page). Status: ${response.status}`);
+        }
+        
+        // Try to parse as JSON
+        try {
+            const json = JSON.parse(text);
+            
+            if (!response.ok) {
+                throw new Error(json.error || json.message || `HTTP ${response.status}`);
+            }
+            
+            return json;
+        } catch (parseError) {
+            console.error('JSON parse error:', parseError);
+            console.error('Response was:', text);
+            throw new Error(`Invalid JSON response: ${parseError.message}`);
+        }
+    } catch (error) {
+        console.error('Fetch error:', error);
+        throw error;
+    }
+}
 
 // ===== TAB SWITCHING =====
 function switchTab(tabName, event) {
@@ -169,11 +209,18 @@ function isInstagramUrl(url) {
 
 async function fetchInstagramVideo(instagramUrl) {
     try {
-        const response = await fetch(INSTAGRAM_API + encodeURIComponent(instagramUrl));
-        if (!response.ok) throw new Error(`API status: ${response.status}`);
+        const apiUrl = INSTAGRAM_API + encodeURIComponent(instagramUrl);
+        console.log('Fetching from Instagram API:', apiUrl);
         
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            throw new Error(`Instagram API status: ${response.status}`);
+        }
+
         const data = await response.json();
-        
+        console.log('Instagram API response:', data);
+
         // Multiple formats support
         if (data.video && Array.isArray(data.video) && data.video[0]) {
             return data.video[0].url || data.video[0];
@@ -182,9 +229,10 @@ async function fetchInstagramVideo(instagramUrl) {
         if (data.download_url) return data.download_url;
         if (data.media) return data.media;
         if (data.data?.url) return data.data.url;
-        
-        throw new Error('Video URL not found');
+
+        throw new Error('Video URL not found in response');
     } catch (error) {
+        console.error('Instagram fetch error:', error);
         throw new Error(`Instagram fetch failed: ${error.message}`);
     }
 }
@@ -229,7 +277,7 @@ async function refreshAllExpired() {
             successCount++;
             await new Promise(r => setTimeout(r, 1500));
         } catch (e) {
-            console.error('Refresh failed:', e);
+            console.error('Refresh failed for reel:', reel.reelId, e);
         }
     }
 
@@ -243,16 +291,15 @@ async function refreshAllExpired() {
 // ===== API FUNCTIONS =====
 async function loadReels() {
     document.getElementById('reel-list').innerHTML = '<p style="text-align:center;opacity:0.7;"><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
-    
+
     try {
-        const response = await fetch('/api/github-reels', { cache: 'no-store' });
-        const data = await response.json();
+        const data = await safeFetch('/api/github-reels', { cache: 'no-store' });
         allReels = data.reels || [];
         originalReels = JSON.parse(JSON.stringify(allReels));
         updateReelPage();
     } catch (error) {
         showMessage(`Load failed: ${error.message}`, 'error', 'reel');
-        document.getElementById('reel-list').innerHTML = '';
+        document.getElementById('reel-list').innerHTML = '<p style="text-align:center;color:#ff6666;">Failed to load. Check console for details.</p>';
     }
 }
 
@@ -261,15 +308,17 @@ async function finalUpdateReels() {
 
     try {
         showLoading(true);
-        const response = await fetch('/api/github-reels', {
+        
+        const result = await safeFetch('/api/github-reels', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ data: { reels: allReels }, message: "Update reels" })
         });
 
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error);
-        
+        if (!result.success) {
+            throw new Error(result.error || 'Unknown error');
+        }
+
         showMessage('Saved successfully!', 'success', 'reel');
         await loadReels();
     } catch (error) {
@@ -281,16 +330,15 @@ async function finalUpdateReels() {
 
 async function loadProfiles() {
     document.getElementById('profile-list').innerHTML = '<p style="text-align:center;opacity:0.7;"><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
-    
+
     try {
-        const response = await fetch('/api/github-profiles', { cache: 'no-store' });
-        const data = await response.json();
+        const data = await safeFetch('/api/github-profiles', { cache: 'no-store' });
         allProfiles = data.profiles || [];
         originalProfiles = JSON.parse(JSON.stringify(allProfiles));
         updateProfilePage();
     } catch (error) {
         showMessage(`Load failed: ${error.message}`, 'error', 'profile');
-        document.getElementById('profile-list').innerHTML = '';
+        document.getElementById('profile-list').innerHTML = '<p style="text-align:center;color:#ff6666;">Failed to load. Check console for details.</p>';
     }
 }
 
@@ -299,15 +347,17 @@ async function finalUpdateProfiles() {
 
     try {
         showLoading(true);
-        const response = await fetch('/api/github-profiles', {
+        
+        const result = await safeFetch('/api/github-profiles', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ data: { profiles: allProfiles }, message: "Update profiles" })
         });
 
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error);
-        
+        if (!result.success) {
+            throw new Error(result.error || 'Unknown error');
+        }
+
         showMessage('Saved successfully!', 'success', 'profile');
         await loadProfiles();
     } catch (error) {
@@ -350,7 +400,7 @@ function renderReel(reel) {
 
     const hasIG = reel.instagramUrl;
     const expired = hasIG && isPotentiallyExpired(reel);
-    
+
     item.innerHTML = `
         <p><b>Reel ID:</b> ${reel.reelId} 
             ${hasIG ? '<span class="badge badge-instagram"><i class="fab fa-instagram"></i> Instagram</span>' : ''}
@@ -383,15 +433,15 @@ async function searchReel() {
 
 function deleteReel(reelId) {
     if (!confirm('Delete?')) return;
-    
+
     const idx = allReels.findIndex(r => r.reelId === reelId);
     const origIdx = originalReels.findIndex(r => r.reelId === reelId);
-    
+
     if (idx === -1) return showMessage("Not found", "error", "reel");
-    
+
     allReels.splice(idx, 1);
     if (origIdx !== -1) originalReels.splice(origIdx, 1);
-    
+
     showMessage("Deleted. Save to GitHub.", "success", "reel");
     updateReelPage();
 }
@@ -503,15 +553,15 @@ async function searchProfile() {
 
 function deleteProfile(profileId) {
     if (!confirm('Delete?')) return;
-    
+
     const idx = allProfiles.findIndex(p => p.id === profileId);
     const origIdx = originalProfiles.findIndex(p => p.id === profileId);
-    
+
     if (idx === -1) return showMessage("Not found", "error", "profile");
-    
+
     allProfiles.splice(idx, 1);
     if (origIdx !== -1) originalProfiles.splice(origIdx, 1);
-    
+
     showMessage("Deleted. Save to GitHub.", "success", "profile");
     updateProfilePage();
 }
