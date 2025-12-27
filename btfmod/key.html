@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTF x FF | Premium Key Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 50%, #ffffff 100%);
+            color: #dc3545;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 80%, rgba(220, 53, 69, 0.05) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(220, 53, 69, 0.05) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 40%, rgba(220, 53, 69, 0.03) 0%, transparent 50%);
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .logo {
+            font-family: 'Poppins', sans-serif;
+            font-size: clamp(3rem, 10vw, 6rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, #dc3545, #fd7e14, #dc3545);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+            letter-spacing: -2px;
+        }
+
+        .credits {
+            font-size: 1.3rem;
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .credits span {
+            color: #dc3545;
+            font-weight: 700;
+        }
+
+        .main-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(220, 53, 69, 0.1);
+            border-radius: 30px;
+            padding: 60px 50px;
+            text-align: center;
+            box-shadow: 
+                0 25px 50px rgba(220, 53, 69, 0.1),
+                0 0 0 1px rgba(255, 255, 255, 0.8),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .main-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 
+                0 35px 70px rgba(220, 53, 69, 0.15),
+                0 0 0 1px rgba(255, 255, 255, 0.9);
+        }
+
+        .status {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #dc3545;
+            margin-bottom: 40px;
+            line-height: 1.4;
+        }
+
+        .generate-btn {
+            padding: 22px 60px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Poppins', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(220, 53, 69, 0.4);
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 25px 50px rgba(220, 53, 69, 0.5);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .key-container {
+            margin-top: 50px;
+            padding: 40px;
+            background: linear-gradient(135deg, rgba(220, 53, 69, 0.05) 0%, rgba(253, 126, 20, 0.05) 100%);
+            border: 2px solid rgba(220, 53, 69, 0.2);
+            border-radius: 25px;
+            display: none;
+        }
+
+        .key-display {
+            font-family: 'Poppins', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #dc3545;
+            word-break: break-all;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 25px 30px;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            border-left: 6px solid #dc3545;
+            box-shadow: 0 10px 30px rgba(220, 53, 69, 0.1);
+            letter-spacing: 1px;
+        }
+
+        .copy-btn {
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Poppins', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 10px 25px rgba(220, 53, 69, 0.3);
+        }
+
+        .copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(220, 53, 69, 0.4);
+        }
+
+        .success-status {
+            color: #28a745 !important;
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 20px 15px; }
+            .main-card { padding: 40px 30px; }
+            .generate-btn { padding: 18px 40px; font-size: 1.2rem; }
+            .logo { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo">BTF x FF</h1>
+            <p class="credits">
+                Made By <span>Masoom</span> & Powered By <span>BTF Group</span>
+            </p>
+        </div>
+
+        <div class="main-card">
+            <div class="status" id="status">
+                <i class="fas fa-crown"></i> Click to Generate Premium Key Instantly
+            </div>
+            
+            <button class="generate-btn" id="generateBtn" onclick="generateKey()">
+                <i class="fas fa-rocket"></i> Generate Premium Key
+            </button>
+
+            <div class="key-container" id="keyContainer">
+                <div class="key-display" id="keyDisplay"></div>
+                <button class="copy-btn" onclick="copyKey()">
+                    <i class="fas fa-copy"></i> Copy Key
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://ffhackcode.btfcompanystorage.workers.dev/api/get-key';
+        
+        async function generateKey() {
+            const statusEl = document.getElementById('status');
+            const btn = document.getElementById('generateBtn');
+            const keyContainer = document.getElementById('keyContainer');
+            
+            // Show spinner only on generate
+            btn.innerHTML = '<div class="loading-spinner"></div> Generating...';
+            btn.disabled = true;
+            statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching Premium Key...';
+            
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                if (data.success && data.key) {
+                    document.getElementById('keyDisplay').textContent = data.key;
+                    keyContainer.style.display = 'block';
+                    statusEl.className = 'status success-status';
+                    statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Premium Key Generated Successfully!';
+                    btn.innerHTML = '<i class="fas fa-sync-alt"></i> Generate New Key';
+                } else {
+                    statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> No key available, try again!';
+                    btn.innerHTML = '<i class="fas fa-rocket"></i> Generate Premium Key';
+                }
+            } catch (error) {
+                statusEl.innerHTML = '<i class="fas fa-times-circle"></i> Connection error, please try again!';
+                btn.innerHTML = '<i class="fas fa-rocket"></i> Generate Premium Key';
+            }
+            
+            btn.disabled = false;
+        }
+        
+        function copyKey() {
+            const key = document.getElementById('keyDisplay').textContent;
+            navigator.clipboard.writeText(key).then(() => {
+                const btn = event.target;
+                const original = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
+                setTimeout(() => {
+                    btn.innerHTML = original;
+                    btn.style.background = '';
+                }, 1500);
+            });
+        }
+    </script>
+</body>
+</html>
